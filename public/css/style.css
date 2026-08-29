@@ -644,8 +644,10 @@ button, input, select, textarea {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   user-select: none;
+  contain: paint layout;
+  transform: translateZ(0);
 }
 .folder-card:hover {
   background: var(--bg-hover);
@@ -684,11 +686,16 @@ button, input, select, textarea {
   border-radius: var(--radius-lg);
   overflow: hidden;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform 0.15s ease, border-color 0.15s ease;
   display: flex;
   flex-direction: column;
   user-select: none;
   position: relative;
+  contain: paint layout;
+  content-visibility: auto;
+  contain-intrinsic-size: 200px;
+  transform: translateZ(0);
+  will-change: transform;
 }
 .file-card:hover {
   border-color: var(--accent-primary);
@@ -1308,7 +1315,18 @@ body.has-selection .photo-select-btn {
     padding: 0.5rem 0;
   }
 
-  /* Mobile Bottom Navigation Bar (Google Drive App Style) */
+  /* Mobile Smooth 60FPS UI Overrides */
+  .glass,
+  .top-header.glass,
+  .mobile-bottom-nav.glass,
+  .modal-backdrop {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .top-header {
+    background: var(--bg-secondary) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  }
   .mobile-bottom-nav {
     position: fixed;
     bottom: 0;
@@ -1321,9 +1339,8 @@ body.has-selection .photo-select-btn {
     justify-content: space-around;
     padding: 0 0.5rem;
     border-top: 1px solid var(--border-color);
-    background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: var(--bg-secondary) !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.35);
   }
 
   .bottom-nav-item {

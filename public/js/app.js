@@ -846,18 +846,18 @@ class CloudMeApp {
       let thumbnailHtml = `<i data-lucide="${this.getFileIcon(f.mime_type)}" class="file-icon-placeholder"></i>`;
       if (f.mime_type && f.mime_type.startsWith('image/')) {
         thumbnailHtml = `
-          <img src="/api/files/${f.id}/preview?token=${this.token}" class="file-thumb-img" alt="${this.escapeHtml(f.name)}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <img src="/api/files/${f.id}/preview?token=${this.token}" class="file-thumb-img" alt="${this.escapeHtml(f.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
             <i data-lucide="image" style="width: 36px; height: 36px; color: var(--text-muted);"></i>
           </div>
         `;
       } else if (f.mime_type && f.mime_type.startsWith('video/')) {
         thumbnailHtml = `
-          <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden;">
-            <video preload="metadata" muted playsinline style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;">
-              <source src="/api/files/${f.id}/preview?token=${this.token}#t=0.5" type="${f.mime_type}">
-            </video>
-            <i data-lucide="play-circle" style="position: absolute; width: 38px; height: 38px; color: #ffffff; opacity: 0.9; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));"></i>
+          <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #18181b 0%, #09090b 100%); overflow: hidden;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(99, 102, 241, 0.35); border: 1.5px solid rgba(99, 102, 241, 0.7); display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="play" style="width: 20px; height: 20px; color: #ffffff; margin-left: 2px;"></i>
+            </div>
+            <span style="font-size: 0.72rem; color: rgba(255,255,255,0.7); margin-top: 6px;">Video</span>
           </div>
         `;
       }
@@ -865,7 +865,7 @@ class CloudMeApp {
       el.innerHTML = `
         <div class="file-thumbnail-container" style="position: relative;">
           ${thumbnailHtml}
-          <button class="btn-icon" style="position: absolute; top: 6px; right: 6px; background: rgba(0, 0, 0, 0.55); color: #ffffff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); z-index: 5;" title="Opsi Berkas" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${f.id}'))">
+          <button class="btn-icon" style="position: absolute; top: 6px; right: 6px; background: rgba(15, 23, 42, 0.85); color: #ffffff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 5;" title="Opsi Berkas" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${f.id}'))">
             <i data-lucide="more-vertical" style="width: 14px; height: 14px;"></i>
           </button>
         </div>
