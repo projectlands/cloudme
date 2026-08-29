@@ -760,6 +760,7 @@ router.get('/:id/preview', authMiddleware, (req, res) => {
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
         'Content-Type': file.mime_type || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=604800',
       };
       res.writeHead(206, head);
       stream.pipe(res);
@@ -767,6 +768,7 @@ router.get('/:id/preview', authMiddleware, (req, res) => {
       const head = {
         'Content-Length': fileSize,
         'Content-Type': file.mime_type || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400',
       };
       res.writeHead(200, head);
       fs.createReadStream(filePath).pipe(res);

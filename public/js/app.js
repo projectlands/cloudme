@@ -993,18 +993,21 @@ class CloudMeApp {
               const isSel = this.selectedItemIds.has(item.id);
               if (isVideo) {
                 return `
-                  <div class="photo-card ${isSel ? 'selected' : ''}" data-item-id="${item.id}" onclick="app.handlePhotoClick(event, app.getItemById('${item.id}'))" style="background: #000;">
+                  <div class="photo-card ${isSel ? 'selected' : ''}" data-item-id="${item.id}" onclick="app.handlePhotoClick(event, app.getItemById('${item.id}'))" style="background: linear-gradient(135deg, #18181b 0%, #09090b 100%);">
                     <button type="button" class="photo-select-btn ${isSel ? 'selected' : ''}" title="Pilih video ini" onclick="app.togglePhotoSelect(event, '${item.id}')">
                       <i data-lucide="${isSel ? 'check' : 'circle'}" style="width: 14px; height: 14px;"></i>
                     </button>
                     <button type="button" class="photo-menu-btn" title="Opsi Video" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${item.id}'))">
                       <i data-lucide="more-vertical" style="width: 14px; height: 14px;"></i>
                     </button>
-                    <video preload="metadata" muted playsinline style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;">
-                      <source src="/api/files/${item.id}/preview?token=${this.token}#t=0.5" type="${item.mime_type}">
-                    </video>
+                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; pointer-events: none;">
+                      <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(99, 102, 241, 0.35); border: 1.5px solid rgba(99, 102, 241, 0.7); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.5);">
+                        <i data-lucide="play" style="width: 22px; height: 22px; color: #ffffff; margin-left: 2px;"></i>
+                      </div>
+                      <span style="font-size: 0.72rem; color: rgba(255,255,255,0.75); margin-top: 8px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90%;">${this.escapeHtml(item.name)}</span>
+                    </div>
                     <div class="photo-overlay-badge" style="display: flex; align-items: center; gap: 4px;">
-                      <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+                      <i data-lucide="video" style="width: 12px; height: 12px;"></i>
                       <span>Video</span>
                     </div>
                   </div>
@@ -1018,7 +1021,7 @@ class CloudMeApp {
                   <button type="button" class="photo-menu-btn" title="Opsi Foto" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${item.id}'))">
                     <i data-lucide="more-vertical" style="width: 14px; height: 14px;"></i>
                   </button>
-                  <img src="/api/files/${item.id}/preview?token=${this.token}" alt="${this.escapeHtml(item.name)}" loading="lazy" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                  <img src="/api/files/${item.id}/preview?token=${this.token}" alt="${this.escapeHtml(item.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
                   <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--bg-tertiary);">
                     <i data-lucide="image" style="width: 32px; height: 32px; color: var(--text-muted);"></i>
                   </div>

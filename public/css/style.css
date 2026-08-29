@@ -828,6 +828,11 @@ button, input, select, textarea {
   background: var(--bg-tertiary);
   transition: transform var(--transition-fast), outline 0.15s ease;
   user-select: none;
+  contain: paint layout;
+  content-visibility: auto;
+  contain-intrinsic-size: 160px 160px;
+  transform: translateZ(0);
+  will-change: transform;
 }
 .photo-card img {
   width: 100%;
@@ -914,12 +919,17 @@ body.has-selection .photo-select-btn {
 }
 
 @media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
   .photo-select-btn {
     opacity: 0.85;
     width: 24px;
     height: 24px;
     top: 5px;
     left: 5px;
+    backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.85) !important;
   }
   .photo-menu-btn {
     opacity: 0.85;
@@ -927,20 +937,12 @@ body.has-selection .photo-select-btn {
     height: 24px;
     top: 5px;
     right: 5px;
+    backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.85) !important;
   }
-}
-
-.photo-overlay-badge {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.75);
-  color: #ffffff;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  backdrop-filter: blur(4px);
+  .photo-overlay-badge {
+    backdrop-filter: none !important;
+  }
 }
 
 /* Context Menu */
