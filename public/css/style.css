@@ -1101,14 +1101,36 @@ body.has-selection .photo-select-btn {
   flex-direction: column;
 }
 .lightbox-header {
-  height: 60px;
+  min-height: calc(64px + var(--sat));
+  padding-top: calc(var(--sat) + 8px);
+  padding-bottom: 8px;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
-  background: rgba(0, 0, 0, 0.5);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   color: #ffffff;
+  box-sizing: border-box;
+  z-index: 130;
+}
+.lightbox-header .btn-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lightbox-header .btn-icon:hover,
+.lightbox-header .btn-icon:active {
+  background: rgba(255, 255, 255, 0.3);
 }
 .lightbox-body {
   flex: 1;

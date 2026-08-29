@@ -1090,6 +1090,35 @@ class CloudMeApp {
             </div>
           </div>
 
+          <!-- Native In-App Auto Backup Card -->
+          <div class="sync-param-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%); border: 1.5px solid var(--accent-primary); margin-bottom: 2rem; padding: 1.25rem; border-radius: var(--radius-lg);">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--accent-primary); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0;">
+                  <i data-lucide="camera" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div>
+                  <h3 style="font-size: 1.1rem; font-weight: 700; color: #fff;">Cadangkan Galeri HP Otomatis</h3>
+                  <p id="nativeBackupSubtitle" style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">Otomatis upload foto & video baru dari kamera HP di latar belakang</p>
+                </div>
+              </div>
+              <button id="btnToggleNativeBackup" class="btn btn-primary" style="padding: 0.65rem 1.25rem; font-weight: 600;" onclick="app.toggleNativeAutoBackup()">
+                <i data-lucide="power" style="width: 16px; height: 16px;"></i>
+                <span id="txtToggleNativeBackup">Aktifkan Auto-Backup</span>
+              </button>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.5rem; flex-wrap: wrap; gap: 0.75rem;">
+              <div style="font-size: 0.85rem; color: var(--text-muted);">
+                Status: <strong id="nativeBackupStatusText" style="color: var(--text-primary);">Memeriksa...</strong>
+              </div>
+              <button id="btnSyncNowNative" class="btn btn-secondary" style="padding: 0.45rem 0.9rem; font-size: 0.82rem;" onclick="app.triggerNativeSyncNow()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                <span>Sinkronkan Sekarang</span>
+              </button>
+            </div>
+          </div>
+
           <div class="sync-steps-grid">
             <div class="sync-step-card">
               <div class="sync-step-num">1</div>
@@ -1178,6 +1207,76 @@ class CloudMeApp {
     `;
 
     if (window.lucide) lucide.createIcons();
+    this.checkNativeBackupStatus();
+  }
+
+  async checkNativeBackupStatus() {
+    const statusText = document.getElementById('nativeBackupStatusText');
+    const toggleBtn = document.getElementById('btnToggleNativeBackup');
+    const toggleTxt = document.getElementById('txtToggleNativeBackup');
+    if (!statusText || !toggleBtn) return;
+
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AutoBackup) {
+      try {
+        const res = await window.Capacitor.Plugins.AutoBackup.getStatus();
+        if (res && res.isEnabled) {
+          statusText.innerHTML = `<span style="color: var(--color-success); font-weight: 600;">● Aktif</span> (Total ${res.totalUploaded || 0} foto tercadangkan)`;
+          toggleBtn.className = 'btn btn-secondary';
+          if (toggleTxt) toggleTxt.textContent = 'Matikan Auto-Backup';
+          return;
+        }
+      } catch (err) {
+        console.warn('AutoBackup getStatus error:', err);
+      }
+    }
+
+    statusText.innerHTML = `<span style="color: var(--text-muted);">Nonaktif</span>`;
+    toggleBtn.className = 'btn btn-primary';
+    if (toggleTxt) toggleTxt.textContent = 'Aktifkan Auto-Backup';
+  }
+
+  async toggleNativeAutoBackup() {
+    if (!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.AutoBackup) {
+      this.showToast('Fitur auto-backup otomatis tersedia saat membuka aplikasi CloudMe di HP Android.', 'info');
+      return;
+    }
+
+    try {
+      const status = await window.Capacitor.Plugins.AutoBackup.getStatus();
+      if (status && status.isEnabled) {
+        await window.Capacitor.Plugins.AutoBackup.disableAutoBackup();
+        this.showToast('Auto-backup galeri dinonaktifkan.', 'info');
+      } else {
+        const serverUrl = this.getServerUrl();
+        await window.Capacitor.Plugins.AutoBackup.enableAutoBackup({
+          serverUrl: serverUrl,
+          token: this.token,
+          intervalMinutes: 15
+        });
+        this.showToast('✅ Auto-backup galeri HP aktif! Sinkronisasi pertama dimulai.', 'success');
+      }
+      this.checkNativeBackupStatus();
+    } catch (err) {
+      this.showToast('Gagal mengubah status auto-backup: ' + (err.message || err), 'error');
+    }
+  }
+
+  async triggerNativeSyncNow() {
+    if (!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.AutoBackup) {
+      this.showToast('Fitur sinkronisasi langsung tersedia di aplikasi Android.', 'info');
+      return;
+    }
+
+    try {
+      await window.Capacitor.Plugins.AutoBackup.syncNow();
+      this.showToast('🔄 Memindai galeri dan mengunggah foto baru ke laptop...', 'info');
+      setTimeout(() => {
+        this.checkNativeBackupStatus();
+        this.loadPhotosTimeline();
+      }, 4000);
+    } catch (err) {
+      this.showToast('Gagal memicu sinkronisasi: ' + (err.message || err), 'error');
+    }
   }
 
   // -------------------------------------------------------------
