@@ -27,6 +27,13 @@ allprojects {
             force 'androidx.core:core:1.15.0'
             force 'androidx.core:core-ktx:1.15.0'
             force 'androidx.activity:activity:1.9.3'
+
+            eachDependency { details ->
+                if (details.requested.group == 'org.jetbrains.kotlin' && 
+                   (details.requested.name == 'kotlin-stdlib-jdk7' || details.requested.name == 'kotlin-stdlib-jdk8')) {
+                    details.useTarget("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+                }
+            }
         }
     }
 }
