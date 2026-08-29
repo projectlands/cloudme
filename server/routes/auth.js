@@ -8,6 +8,14 @@ const fs = require('fs');
 const { db, getSetting } = require('../db');
 const { authMiddleware, JWT_SECRET } = require('../middleware/auth');
 
+// Public system configuration (registration allowed, app name, etc.)
+router.get('/config', (req, res) => {
+  res.json({
+    allowRegistration: getSetting('allow_registration') !== 'false',
+    appName: getSetting('app_name') || 'CloudMe'
+  });
+});
+
 // Register (if enabled)
 router.post('/register', (req, res) => {
   const allowReg = getSetting('allow_registration') !== 'false';

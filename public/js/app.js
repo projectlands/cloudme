@@ -87,6 +87,16 @@ class CloudMeApp {
         document.getElementById('appBrandTitle').textContent = data.appName;
       }
 
+      // Check public auth config (allowRegistration)
+      try {
+        const cfgRes = await fetch('/api/auth/config');
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json();
+          this.allowRegistration = cfg.allowRegistration !== false;
+          this.updateRegisterUI();
+        }
+      } catch(e) {}
+
       // If opening a public share URL, do NOT ask for login
       if (window.location.hash.startsWith('#share/')) {
         this.handleHashChange();
@@ -95,6 +105,7 @@ class CloudMeApp {
 
       // Check if logged in
       if (!this.token || !this.user) {
+        this.updateRegisterUI();
         this.openModal('authModal');
         return;
       }
@@ -142,6 +153,20 @@ class CloudMeApp {
     document.getElementById('storagePercentText').textContent = `${percent}%`;
     document.getElementById('storageUsedText').textContent = this.formatBytes(used);
     document.getElementById('storageTotalText').textContent = this.formatBytes(total);
+  }
+
+  updateRegisterUI() {
+    const prompt = document.getElementById('authRegisterPrompt');
+    const notice = document.getElementById('authRegisterDisabledNotice');
+    if (prompt && notice) {
+      if (this.allowRegistration === false) {
+        prompt.style.display = 'none';
+        notice.style.display = 'block';
+      } else {
+        prompt.style.display = 'block';
+        notice.style.display = 'none';
+      }
+    }
   }
 
   // -------------------------------------------------------------
@@ -325,6 +350,7 @@ class CloudMeApp {
     document.getElementById('photosTimelineView').style.display = nav === 'photos' ? 'block' : 'none';
     document.getElementById('mobileBackupView').style.display = nav === 'mobile-sync' ? 'block' : 'none';
     document.getElementById('adminPanelView').style.display = nav === 'admin' ? 'block' : 'none';
+    document.getElementById('emptyStateContainer').style.display = 'none';
 
     this.clearSelection();
 
@@ -824,7 +850,11 @@ class CloudMeApp {
     const files = items.filter(i => i.is_folder === 0);
 
     if (items.length === 0) {
-      emptyState.style.display = 'block';
+      if (this.currentNav !== 'photos' && this.currentNav !== 'mobile-sync' && this.currentNav !== 'admin') {
+        emptyState.style.display = 'block';
+      } else {
+        emptyState.style.display = 'none';
+      }
       foldersSection.style.display = 'none';
       return;
     }
@@ -1551,6 +1581,30 @@ class CloudMeApp {
               <div style="color: var(--text-muted); font-size: 0.85rem;">Media Foto / Video</div>
               <div style="font-size: 1.8rem; font-weight: 700; color: var(--color-warning);">${statsData.stats.totalPhotos}</div>
             </div>
+          <!-- Registration Access Control Card (Enable / Disable Registration) -->
+          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow-md);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+              <div style="display: flex; align-items: center; gap: 0.85rem;">
+                <div style="width: 42px; height: 42px; border-radius: var(--radius-md); background: ${statsData.settings.allowRegistration ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)'}; display: flex; align-items: center; justify-content: center; color: ${statsData.settings.allowRegistration ? '#10b981' : '#ef4444'}; flex-shrink: 0;">
+                  <i data-lucide="${statsData.settings.allowRegistration ? 'user-check' : 'user-x'}" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <h3 style="font-size: 1.05rem; font-weight: 600;">Pendaftaran Akun Baru (Registrasi Publik)</h3>
+                    <span style="font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); ${statsData.settings.allowRegistration ? 'background: rgba(16, 185, 129, 0.15); color: #10b981;' : 'background: rgba(239, 68, 68, 0.15); color: #ef4444;'}">
+                      ${statsData.settings.allowRegistration ? 'DIBUKA' : 'DITUTUP'}
+                    </span>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                    ${statsData.settings.allowRegistration ? 'Pendaftaran mandiri aktif. Siapa saja dapat membuat akun baru melalui formulir registrasi di halaman login.' : 'Pendaftaran mandiri dinonaktifkan (ditutup). Pengguna baru hanya dapat dibuat oleh Admin melalui tombol Tambah Pengguna.'}
+                  </p>
+                </div>
+              </div>
+              <button class="btn ${statsData.settings.allowRegistration ? 'btn-danger' : 'btn-primary'}" style="font-size: 0.85rem; padding: 0.55rem 1.15rem;" onclick="app.toggleRegistrationSetting(${!statsData.settings.allowRegistration})">
+                <i data-lucide="${statsData.settings.allowRegistration ? 'user-x' : 'user-check'}" style="width: 15px; height: 15px;"></i>
+                <span>${statsData.settings.allowRegistration ? 'Nonaktifkan Registrasi (Tutup)' : 'Aktifkan Registrasi (Buka)'}</span>
+              </button>
+            </div>
           </div>
 
           <!-- User Management Table -->
@@ -1715,6 +1769,29 @@ class CloudMeApp {
         btn.innerHTML = '<i data-lucide="save" style="width: 16px; height: 16px;"></i> <span>Terapkan Path</span>';
         if (window.lucide) lucide.createIcons();
       }
+    }
+  }
+
+  async toggleRegistrationSetting(allow) {
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.token}`
+        },
+        body: JSON.stringify({ allowRegistration: allow })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        this.allowRegistration = allow;
+        this.showToast(allow ? '✅ Registrasi publik berhasil dibuka.' : '🔒 Registrasi publik berhasil ditutup.', 'success');
+        this.loadAdminPanel();
+      } else {
+        this.showAlert('Gagal', data.error || 'Gagal mengubah pengaturan registrasi.', 'error');
+      }
+    } catch (err) {
+      this.showAlert('Kesalahan Koneksi', 'Gagal menghubungi server.', 'error');
     }
   }
 
@@ -2762,6 +2839,10 @@ class CloudMeApp {
   }
 
   toggleAuthMode(mode) {
+    if (mode === 'register' && this.allowRegistration === false) {
+      this.showAlert('Registrasi Ditutup', 'Pendaftaran akun mandiri dinonaktifkan oleh Administrator. Silakan hubungi admin server untuk dibuatkan akun baru.', 'warning');
+      return;
+    }
     document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
     document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
     document.getElementById('authModalTitle').textContent = mode === 'login' ? 'Masuk ke CloudMe' : 'Daftar Akun Baru';

@@ -22,23 +22,26 @@
 </head>
 <body>
 
+  <!-- Pull-To-Refresh Indicator for Mobile App -->
+  <div id="pullToRefreshIndicator" class="ptr-indicator mobile-only">
+    <div class="ptr-spinner-container">
+      <div class="ptr-icon" id="ptrIcon">
+        <i data-lucide="arrow-down" style="width: 18px; height: 18px;"></i>
+      </div>
+      <span id="ptrText" class="ptr-text">Tarik untuk memuat ulang</span>
+    </div>
+  </div>
+
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebarBackdrop" class="sidebar-backdrop mobile-only" onclick="app.toggleMobileSidebar(false)"></div>
+
   <!-- App Wrapper -->
   <div id="app" class="app-container">
-
-    <!-- Pull-To-Refresh Indicator for Mobile App -->
-    <div id="pullToRefreshIndicator" class="ptr-indicator">
-      <div class="ptr-spinner-container">
-        <div class="ptr-icon" id="ptrIcon">
-          <i data-lucide="arrow-down" style="width: 18px; height: 18px;"></i>
-        </div>
-        <span id="ptrText" class="ptr-text">Tarik untuk memuat ulang</span>
-      </div>
-    </div>
     
     <!-- Top Header -->
     <header class="top-header glass">
       <div class="brand-section">
-        <button id="btnToggleMobileSidebar" class="btn-icon mobile-menu-btn" title="Menu">
+        <button id="btnToggleMobileSidebar" class="btn-icon mobile-menu-btn mobile-only" title="Menu">
           <i data-lucide="menu"></i>
         </button>
         <div class="brand-logo">
@@ -99,9 +102,6 @@
         </div>
       </div>
     </header>
-
-    <!-- Mobile Sidebar Backdrop Overlay -->
-    <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="app.toggleMobileSidebar(false)"></div>
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="appSidebar">
@@ -175,6 +175,7 @@
         </a>
 
         <div class="nav-divider"></div>
+        <div class="sidebar-section-title">Perangkat & Server</div>
 
         <a href="#mobile-sync" class="nav-item" data-nav="mobile-sync">
           <i data-lucide="smartphone" style="width: 18px; height: 18px; color: #10b981;"></i>
@@ -541,9 +542,13 @@
         <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">
           <span>Masuk</span>
         </button>
-        <p style="text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-top: 1.25rem;">
+        <p id="authRegisterPrompt" style="text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-top: 1.25rem;">
           Belum punya akun? <a href="javascript:void(0)" onclick="app.toggleAuthMode('register')">Daftar di sini</a>
         </p>
+        <div id="authRegisterDisabledNotice" style="display: none; text-align: center; font-size: 0.82rem; color: var(--text-muted); margin-top: 1.25rem; background: var(--bg-tertiary); padding: 0.6rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <i data-lucide="lock" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: var(--color-warning);"></i>
+          <span>Registrasi akun publik dinonaktifkan oleh Admin.</span>
+        </div>
       </form>
 
       <!-- Register Form -->
