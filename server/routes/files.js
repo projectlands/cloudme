@@ -203,6 +203,26 @@ router.post('/upload', authMiddleware, upload.array('files', 50), async (req, re
 
   try {
     for (const file of req.files) {
+      const detectedMime = mime.lookup(file.originalname) || file.mimetype || 'application/octet-stream';
+
+      // Check for duplicate file with same name and size in the same location
+      const existingFile = db.prepare(`
+        SELECT id FROM files 
+        WHERE user_id = ? AND (parent_id IS ? OR parent_id = ?) AND name = ? AND size_bytes = ? AND is_trashed = 0
+      `).get(req.user.id, parentId, parentId, file.originalname, file.size);
+
+      if (existingFile) {
+        try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch (e) {}
+        uploadedResults.push({
+          id: existingFile.id,
+          name: file.originalname,
+          size: file.size,
+          mimeType: detectedMime,
+          isDuplicate: true
+        });
+        continue;
+      }
+
       const fileId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
       const ext = path.extname(file.originalname);
       const safeDiskName = `${fileId}${ext}`;
@@ -213,7 +233,6 @@ router.post('/upload', authMiddleware, upload.array('files', 50), async (req, re
 
       // Checksum
       const checksum = await calculateChecksum(finalDiskPath);
-      const detectedMime = mime.lookup(file.originalname) || file.mimetype || 'application/octet-stream';
 
       db.prepare(`
         INSERT INTO files (id, user_id, parent_id, name, is_folder, size_bytes, mime_type, disk_path, checksum_sha256)

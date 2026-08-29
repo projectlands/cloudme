@@ -1111,13 +1111,19 @@ class CloudMeApp {
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.5rem; flex-wrap: wrap; gap: 0.75rem;">
-              <div style="font-size: 0.85rem; color: var(--text-muted);">
+              <div style="font-size: 0.85rem; color: var(--text-muted); flex: 1; min-width: 180px;">
                 Status: <strong id="nativeBackupStatusText" style="color: var(--text-primary);">Memeriksa...</strong>
               </div>
-              <button id="btnSyncNowNative" class="btn btn-secondary" style="padding: 0.45rem 0.9rem; font-size: 0.82rem;" onclick="app.triggerNativeSyncNow()">
-                <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
-                <span>Sinkronkan Sekarang</span>
-              </button>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <button id="btnCancelNativeSync" class="btn btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);" onclick="app.cancelNativeSync()">
+                  <i data-lucide="square" style="width: 14px; height: 14px;"></i>
+                  <span>Hentikan Sync</span>
+                </button>
+                <button id="btnSyncNowNative" class="btn btn-secondary" style="padding: 0.45rem 0.9rem; font-size: 0.82rem;" onclick="app.triggerNativeSyncNow()">
+                  <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                  <span>Sinkronkan Sekarang</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1242,8 +1248,9 @@ class CloudMeApp {
     if (!indicator) return;
 
     window.addEventListener('touchstart', (e) => {
+      const mainContent = document.querySelector('.main-content');
       const scrollEl = document.scrollingElement || document.documentElement || document.body;
-      const scrollTop = Math.max(scrollEl.scrollTop, window.scrollY, window.pageYOffset || 0);
+      const scrollTop = mainContent ? mainContent.scrollTop : Math.max(scrollEl.scrollTop, window.scrollY, 0);
 
       if (scrollTop <= 2 && !isRefreshing) {
         startY = e.touches[0].clientY;
@@ -1400,6 +1407,23 @@ class CloudMeApp {
       }, 3500);
     } catch (err) {
       this.showToast('Gagal memicu sinkronisasi: ' + (err.message || err), 'error');
+    }
+  }
+
+  async cancelNativeSync() {
+    if (!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.AutoBackup) {
+      this.showToast('Fitur kontrol sinkronisasi tersedia di aplikasi Android.', 'info');
+      return;
+    }
+
+    try {
+      await window.Capacitor.Plugins.AutoBackup.cancelSync();
+      const statusText = document.getElementById('nativeBackupStatusText');
+      if (statusText) statusText.innerHTML = '<span style="color: #ef4444; font-weight: 600;">⛔ Sinkronisasi dihentikan</span>';
+      this.showToast('⛔ Sinkronisasi galeri berhasil dihentikan.', 'info');
+      setTimeout(() => this.checkNativeBackupStatus(), 1200);
+    } catch (err) {
+      this.showToast('Gagal membatalkan sinkronisasi: ' + (err.message || err), 'error');
     }
   }
 

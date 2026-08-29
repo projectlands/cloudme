@@ -1301,22 +1301,25 @@ body.has-selection .photo-select-btn {
     border-bottom: 1px solid var(--border-color);
   }
 
-  /* Main Content Area on Mobile - Complete Scroll Visibility */
+  /* Main Content Area on Mobile - Flawless 60FPS Scroll */
   .app-container {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    min-height: 100vh;
-    max-width: 100vw;
-    overflow-x: hidden;
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .main-content {
+    flex: 1 !important;
     margin-top: calc(56px + var(--sat)) !important;
-    min-height: calc(100vh - 56px - var(--sat));
-    height: auto !important;
-    overflow-y: visible !important;
-    padding: 1rem 0.85rem calc(100px + var(--sab)) 0.85rem !important;
-    box-sizing: border-box;
+    height: calc(100dvh - 56px - var(--sat) - 58px - var(--sab)) !important;
+    max-height: calc(100dvh - 56px - var(--sat) - 58px - var(--sab)) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    padding: 1rem 0.85rem calc(35px + var(--sab)) 0.85rem !important;
+    box-sizing: border-box !important;
   }
 
   /* Safe bottom space for all mobile views so nothing is blocked by bottom nav */
@@ -1326,7 +1329,7 @@ body.has-selection .photo-select-btn {
   #favoritesView,
   #trashView,
   #adminPanelView {
-    padding-bottom: calc(80px + var(--sab)) !important;
+    padding-bottom: calc(40px + var(--sab)) !important;
   }
 
   .content-toolbar {

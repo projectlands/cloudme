@@ -2,9 +2,11 @@ package com.cloudme.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
@@ -44,6 +46,10 @@ public class AutoBackupWorker extends Worker {
             this.mime = mime;
             this.size = size;
         }
+
+        public String getUniqueKey() {
+            return (name != null ? name : "") + "_" + size;
+        }
     }
 
     public AutoBackupWorker(@NonNull Context context, @NonNull WorkerParameters params) {
@@ -56,8 +62,8 @@ public class AutoBackupWorker extends Worker {
         Context context = getApplicationContext();
         SharedPreferences prefs = context.getSharedPreferences("cloudme_backup_prefs", Context.MODE_PRIVATE);
         boolean enabled = prefs.getBoolean("backup_enabled", false);
-        if (!enabled) {
-            Log.d(TAG, "AutoBackup is disabled in prefs.");
+        if (!enabled || AutoBackupPlugin.isCancelRequested()) {
+            Log.d(TAG, "AutoBackup is disabled or cancelled.");
             return Result.success();
         }
 
@@ -72,10 +78,21 @@ public class AutoBackupWorker extends Worker {
         NotificationManager notifManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         createNotificationChannel(notifManager);
 
+        // PendingIntent so tapping notification opens MainActivity
+        Intent launchIntent = new Intent(context, MainActivity.class);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
+        );
+
         NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
                 .setContentTitle("CloudMe Auto-Backup")
-                .setContentText("Memeriksa foto & video di galeri...")
+                .setContentText("Memeriksa foto & video baru di galeri...")
+                .setContentIntent(pendingIntent)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true);
 
@@ -95,10 +112,27 @@ public class AutoBackupWorker extends Worker {
 
         int uploadCount = 0;
         for (MediaItem item : pendingItems) {
+            // Check for user cancellation before each upload
+            if (isStopped() || AutoBackupPlugin.isCancelRequested() || !prefs.getBoolean("backup_enabled", true)) {
+                Log.d(TAG, "AutoBackup cancelled by user.");
+                AutoBackupPlugin.emitSyncProgress(uploadCount, totalFound, "Sinkronisasi dihentikan.");
+                notifManager.cancel(NOTIF_ID);
+                return Result.success();
+            }
+
             boolean success = uploadMedia(context, item.uri, item.name, item.mime, serverUrl, token);
             if (success) {
+                // Immediately save unique key to prevent re-upload even if stopped later
+                uploadedSet.add(item.getUniqueKey());
                 uploadedSet.add(item.id);
                 uploadCount++;
+
+                prefs.edit()
+                        .putStringSet("uploaded_ids", uploadedSet)
+                        .putLong("last_backup_timestamp", System.currentTimeMillis())
+                        .putInt("total_uploaded_count", uploadedSet.size())
+                        .apply();
+
                 AutoBackupPlugin.emitSyncProgress(uploadCount, totalFound, "Menyinkronkan foto (" + uploadCount + "/" + totalFound + ")");
                 try {
                     notifBuilder.setContentText("Menyinkronkan foto (" + uploadCount + "/" + totalFound + ")...");
@@ -106,12 +140,6 @@ public class AutoBackupWorker extends Worker {
                 } catch (Exception ignored) {}
             }
         }
-
-        prefs.edit()
-                .putStringSet("uploaded_ids", uploadedSet)
-                .putLong("last_backup_timestamp", System.currentTimeMillis())
-                .putInt("total_uploaded_count", uploadedSet.size())
-                .apply();
 
         AutoBackupPlugin.emitSyncProgress(uploadCount, totalFound, uploadCount > 0 ? "Selesai! " + uploadCount + " foto baru berhasil dicadangkan." : "Galeri sudah mutakhir.");
 
@@ -121,6 +149,7 @@ public class AutoBackupWorker extends Worker {
                         .setSmallIcon(android.R.drawable.stat_sys_upload_done)
                         .setContentTitle("CloudMe Auto-Backup")
                         .setContentText("Berhasil mencadangkan " + uploadCount + " foto/video baru!")
+                        .setContentIntent(pendingIntent)
                         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                         .setAutoCancel(true);
                 notifManager.notify(NOTIF_ID, doneNotif.build());
@@ -152,12 +181,15 @@ public class AutoBackupWorker extends Worker {
                 while (cursor.moveToNext() && list.size() < 100) {
                     long id = cursor.getLong(idCol);
                     String idStr = String.valueOf(id);
-                    if (uploadedSet.contains(idStr)) {
-                        continue;
-                    }
                     String name = cursor.getString(nameCol);
                     String mime = cursor.getString(mimeCol);
                     long size = cursor.getLong(sizeCol);
+
+                    String uniqueKey = (name != null ? name : "") + "_" + size;
+                    if (uploadedSet.contains(uniqueKey) || uploadedSet.contains(idStr)) {
+                        continue;
+                    }
+
                     Uri contentUri = ContentUris.withAppendedId(mediaUri, id);
                     list.add(new MediaItem(idStr, contentUri, name, mime, size));
                 }

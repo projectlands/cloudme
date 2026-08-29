@@ -48,10 +48,15 @@ import java.util.concurrent.TimeUnit;
 public class AutoBackupPlugin extends Plugin {
     private static final String WORK_NAME = "CloudMeAutoBackupWork";
     private static AutoBackupPlugin instance;
+    private static volatile boolean isCancelRequested = false;
 
     @Override
     public void load() {
         instance = this;
+    }
+
+    public static boolean isCancelRequested() {
+        return isCancelRequested;
     }
 
     public static void emitSyncProgress(int current, int total, String status) {
@@ -115,6 +120,7 @@ public class AutoBackupPlugin extends Plugin {
             return;
         }
 
+        isCancelRequested = false;
         Context context = getContext();
         SharedPreferences prefs = context.getSharedPreferences("cloudme_backup_prefs", Context.MODE_PRIVATE);
         prefs.edit()
@@ -157,6 +163,7 @@ public class AutoBackupPlugin extends Plugin {
 
     @PluginMethod
     public void disableAutoBackup(PluginCall call) {
+        isCancelRequested = true;
         Context context = getContext();
         SharedPreferences prefs = context.getSharedPreferences("cloudme_backup_prefs", Context.MODE_PRIVATE);
         prefs.edit().putBoolean("backup_enabled", false).apply();
@@ -170,7 +177,21 @@ public class AutoBackupPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void cancelSync(PluginCall call) {
+        isCancelRequested = true;
+        Context context = getContext();
+        WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME);
+        emitSyncProgress(0, 0, "Sinkronisasi dibatalkan oleh pengguna.");
+
+        JSObject ret = new JSObject();
+        ret.put("success", true);
+        ret.put("message", "Sinkronisasi dihentikan.");
+        call.resolve(ret);
+    }
+
+    @PluginMethod
     public void syncNow(PluginCall call) {
+        isCancelRequested = false;
         Context context = getContext();
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -201,6 +222,7 @@ public class AutoBackupPlugin extends Plugin {
         ret.put("lastBackupTimestamp", lastBackup);
         ret.put("totalUploaded", totalUploaded);
         ret.put("hasPermission", isMediaPermissionGranted());
+        ret.put("isCancelled", isCancelRequested);
         call.resolve(ret);
     }
 }
