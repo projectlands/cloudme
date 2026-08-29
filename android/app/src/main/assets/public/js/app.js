@@ -870,9 +870,13 @@ class CloudMeApp {
       foldersSection.style.display = 'block';
       folders.forEach(f => {
         const el = document.createElement('div');
-        el.className = `folder-card ${this.selectedItemIds.has(f.id) ? 'selected' : ''}`;
+        const isSel = this.selectedItemIds.has(f.id);
+        el.className = `folder-card ${isSel ? 'selected' : ''}`;
         el.setAttribute('data-item-id', f.id);
         el.innerHTML = `
+          <button type="button" class="item-select-btn item-select-btn-folder ${isSel ? 'selected' : ''}" title="Pilih folder ini" onclick="event.stopPropagation(); app.toggleItemSelect('${f.id}', !app.selectedItemIds.has('${f.id}'))">
+            <i data-lucide="${isSel ? 'check' : 'circle'}" style="width: 14px; height: 14px;"></i>
+          </button>
           <i data-lucide="folder" class="folder-icon" style="color: #fbbf24; flex-shrink: 0;"></i>
           <span class="folder-name" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(f.name)}</span>
           ${f.is_starred ? '<i data-lucide="star" style="width: 14px; height: 14px; color: #f59e0b; flex-shrink: 0;"></i>' : ''}
@@ -894,7 +898,8 @@ class CloudMeApp {
     // 2. Render Files (Grid Cards)
     files.forEach(f => {
       const el = document.createElement('div');
-      el.className = `file-card ${this.selectedItemIds.has(f.id) ? 'selected' : ''}`;
+      const isSel = this.selectedItemIds.has(f.id);
+      el.className = `file-card ${isSel ? 'selected' : ''}`;
       el.setAttribute('data-item-id', f.id);
       
       let thumbnailHtml = `<i data-lucide="${this.getFileIcon(f.mime_type)}" class="file-icon-placeholder"></i>`;
@@ -917,6 +922,9 @@ class CloudMeApp {
       }
 
       el.innerHTML = `
+        <button type="button" class="item-select-btn ${isSel ? 'selected' : ''}" title="Pilih berkas ini" onclick="event.stopPropagation(); app.toggleItemSelect('${f.id}', !app.selectedItemIds.has('${f.id}'))">
+          <i data-lucide="${isSel ? 'check' : 'circle'}" style="width: 14px; height: 14px;"></i>
+        </button>
         <div class="file-thumbnail-container" style="position: relative;">
           ${thumbnailHtml}
           <button class="btn-icon" style="position: absolute; top: 6px; right: 6px; background: rgba(15, 23, 42, 0.85); color: #ffffff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 5;" title="Opsi Berkas" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${f.id}'))">
@@ -2395,6 +2403,8 @@ class CloudMeApp {
       this.refreshCurrentView();
     } else if (action === 'rename') {
       this.openRenameModal(item);
+    } else if (action === 'move') {
+      this.openMoveModal(item);
     } else if (action === 'delete') {
       const isTrash = (this.currentNav === 'trash' || item.is_trashed === 1);
       const confirmed = await this.showConfirm(
@@ -2423,15 +2433,67 @@ class CloudMeApp {
 
   // -------------------------------------------------------------
   // 9. Lightbox Media Previewer (Photos, Video, Audio, PDF, Text)
+  // -------------------------------------------------------------
   openLightbox(item) {
-    this.activeLightboxItem = item;
+    if (!item) return;
+
+    // Collect all previewable files in current view context
+    let queue = [];
+    if (this.currentNav === 'photos' && this.timelineCache) {
+      this.timelineCache.forEach(group => {
+        if (group.items) {
+          group.items.forEach(i => queue.push(i));
+        }
+      });
+    } else if (this.itemsCache) {
+      queue = this.itemsCache.filter(i => i.is_folder !== 1);
+    }
+
+    if (!queue.some(i => i.id === item.id)) {
+      queue.unshift(item);
+    }
+
+    this.lightboxQueue = queue;
+    this.lightboxCurrentIndex = queue.findIndex(i => i.id === item.id);
+    if (this.lightboxCurrentIndex === -1) this.lightboxCurrentIndex = 0;
+
     const lightbox = document.getElementById('mediaLightbox');
+    if (lightbox) lightbox.style.display = 'flex';
+
+    this.renderLightboxItem(queue[this.lightboxCurrentIndex]);
+    this.setupLightboxListeners();
+  }
+
+  navigateLightbox(direction) {
+    if (!this.lightboxQueue || this.lightboxQueue.length <= 1) return;
+    const len = this.lightboxQueue.length;
+    this.lightboxCurrentIndex = (this.lightboxCurrentIndex + direction + len) % len;
+    this.renderLightboxItem(this.lightboxQueue[this.lightboxCurrentIndex]);
+  }
+
+  renderLightboxItem(item) {
+    if (!item) return;
+    this.activeLightboxItem = item;
     const container = document.getElementById('lightboxMediaContainer');
-    document.getElementById('lightboxFileName').textContent = item.name;
+    const nameEl = document.getElementById('lightboxFileName');
+    if (nameEl) nameEl.textContent = item.name;
 
-    lightbox.style.display = 'flex';
+    const counter = document.getElementById('lightboxCounter');
+    if (counter && this.lightboxQueue && this.lightboxQueue.length > 0) {
+      counter.textContent = `${this.lightboxCurrentIndex + 1} / ${this.lightboxQueue.length}`;
+      counter.style.display = this.lightboxQueue.length > 1 ? 'inline-block' : 'none';
+    }
+
+    const btnPrev = document.getElementById('lightboxBtnPrev');
+    const btnNext = document.getElementById('lightboxBtnNext');
+    if (btnPrev && btnNext) {
+      const showNav = this.lightboxQueue && this.lightboxQueue.length > 1;
+      btnPrev.style.display = showNav ? 'flex' : 'none';
+      btnNext.style.display = showNav ? 'flex' : 'none';
+    }
+
+    if (!container) return;
     container.innerHTML = '';
-
     const mimeType = item.mime_type || '';
 
     if (mimeType.startsWith('image/')) {
@@ -2453,7 +2515,6 @@ class CloudMeApp {
           </audio>
         </div>
       `;
-      if (window.lucide) lucide.createIcons();
     } else if (mimeType.includes('pdf')) {
       container.innerHTML = `<iframe src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" style="width: 85vw; height: 85vh; border: none; border-radius: var(--radius-md);"></iframe>`;
     } else {
@@ -2466,7 +2527,53 @@ class CloudMeApp {
           </button>
         </div>
       `;
-      if (window.lucide) lucide.createIcons();
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  setupLightboxListeners() {
+    if (this._lightboxListenersAttached) return;
+    this._lightboxListenersAttached = true;
+
+    window.addEventListener('keydown', (e) => {
+      const lightbox = document.getElementById('mediaLightbox');
+      if (lightbox && lightbox.style.display !== 'none') {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.navigateLightbox(-1);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          this.navigateLightbox(1);
+        } else if (e.key === 'Escape') {
+          this.closeLightbox();
+        }
+      }
+    });
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const lightbox = document.getElementById('mediaLightbox');
+    if (lightbox) {
+      lightbox.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length === 1) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      lightbox.addEventListener('touchend', (e) => {
+        if (e.changedTouches && e.changedTouches.length === 1) {
+          const deltaX = e.changedTouches[0].clientX - touchStartX;
+          const deltaY = e.changedTouches[0].clientY - touchStartY;
+          if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+            if (deltaX < 0) {
+              this.navigateLightbox(1); // swipe left -> next
+            } else {
+              this.navigateLightbox(-1); // swipe right -> prev
+            }
+          }
+        }
+      }, { passive: true });
     }
   }
 
@@ -2554,17 +2661,117 @@ class CloudMeApp {
     this.showToast('✅ Tautan berbagi berhasil disalin ke clipboard!', 'success');
   }
 
+  async openMoveModal(item) {
+    if (!item) return;
+    this.itemsToMove = [item];
+    await this.setupMoveModalUI(`Pindahkan "${item.name}"`);
+  }
+
+  async openBatchMoveModal() {
+    if (this.selectedItemIds.size === 0) return;
+    this.itemsToMove = Array.from(this.selectedItemIds).map(id => this.getItemById(id)).filter(Boolean);
+    await this.setupMoveModalUI(`Pindahkan ${this.itemsToMove.length} Item`);
+  }
+
+  async setupMoveModalUI(title) {
+    const titleEl = document.getElementById('moveModalTitle');
+    if (titleEl) titleEl.textContent = title;
+    this.selectedTargetFolderId = 'root';
+
+    const listEl = document.getElementById('moveFolderList');
+    if (listEl) listEl.innerHTML = '<div style="text-align: center; padding: 1rem; color: var(--text-muted);">Memuat folder...</div>';
+    this.openModal('moveModal');
+
+    try {
+      const res = await fetch('/api/files', { headers: { 'Authorization': `Bearer ${this.token}` } });
+      const data = await res.json();
+      const allFolders = (data.files || []).filter(f => f.is_folder === 1 && f.is_trashed === 0);
+
+      const movingIds = new Set((this.itemsToMove || []).map(i => i.id));
+      const validFolders = allFolders.filter(f => !movingIds.has(f.id));
+
+      let html = `
+        <div class="move-folder-item selected" data-folder-id="root" onclick="app.selectMoveTargetFolder('root', this)" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--bg-tertiary); cursor: pointer; border: 1.5px solid var(--accent-primary);">
+          <i data-lucide="hard-drive" style="width: 18px; height: 18px; color: var(--accent-primary);"></i>
+          <span style="font-weight: 500; flex: 1;">Drive Utama (Root)</span>
+          <i data-lucide="check" class="move-check-icon" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+        </div>
+      `;
+
+      validFolders.forEach(f => {
+        html += `
+          <div class="move-folder-item" data-folder-id="${f.id}" onclick="app.selectMoveTargetFolder('${f.id}', this)" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--bg-tertiary); cursor: pointer; border: 1.5px solid transparent;">
+            <i data-lucide="folder" style="width: 18px; height: 18px; color: #fbbf24;"></i>
+            <span style="font-weight: 500; flex: 1;">${this.escapeHtml(f.name)}</span>
+            <i data-lucide="check" class="move-check-icon" style="width: 16px; height: 16px; color: var(--accent-primary); display: none;"></i>
+          </div>
+        `;
+      });
+
+      listEl.innerHTML = html;
+      if (window.lucide) lucide.createIcons();
+    } catch (e) {
+      if (listEl) listEl.innerHTML = '<div style="color: var(--color-danger); text-align: center; padding: 1rem;">Gagal memuat folder.</div>';
+    }
+  }
+
+  selectMoveTargetFolder(folderId, el) {
+    this.selectedTargetFolderId = folderId;
+    document.querySelectorAll('.move-folder-item').forEach(item => {
+      item.style.borderColor = 'transparent';
+      const check = item.querySelector('.move-check-icon');
+      if (check) check.style.display = 'none';
+    });
+    if (el) {
+      el.style.borderColor = 'var(--accent-primary)';
+      const check = el.querySelector('.move-check-icon');
+      if (check) check.style.display = 'block';
+    }
+  }
+
+  async executeMove() {
+    if (!this.itemsToMove || this.itemsToMove.length === 0) return;
+    const targetParent = this.selectedTargetFolderId === 'root' ? null : this.selectedTargetFolderId;
+
+    try {
+      for (const item of this.itemsToMove) {
+        await fetch(`/api/files/${item.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+          body: JSON.stringify({ parent_id: targetParent })
+        });
+      }
+      this.closeModal('moveModal');
+      this.showToast(`📁 Berhasil memindahkan ${this.itemsToMove.length} item.`, 'success');
+      this.clearSelection();
+      this.refreshCurrentView();
+      this.checkSystemStatus();
+    } catch (err) {
+      this.showToast('Gagal memindahkan item', 'error');
+    }
+  }
+
   // -------------------------------------------------------------
   // 11. Multi-Selection & Batch Actions
   // -------------------------------------------------------------
   handleItemClick(e, item) {
-    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+    if (!item) return;
+    if (this.selectedItemIds.size > 0 || e.ctrlKey || e.metaKey || e.shiftKey) {
       if (this.selectedItemIds.has(item.id)) {
         this.selectedItemIds.delete(item.id);
       } else {
         this.selectedItemIds.add(item.id);
       }
       this.updateSelectionUI();
+    } else {
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        if (item.is_folder) {
+          window.location.hash = `#drive/${item.id}`;
+        } else {
+          this.openLightbox(item);
+        }
+      }
     }
   }
 
@@ -2642,11 +2849,20 @@ class CloudMeApp {
       }
     });
 
-    // 5. Update all Grid Cards Classes
+    // 5. Update all Grid Cards Classes & Selection Checkboxes
     document.querySelectorAll('.file-card, .folder-card').forEach(card => {
       const id = card.getAttribute('data-item-id');
       if (id) {
-        card.classList.toggle('selected', this.selectedItemIds.has(id));
+        const isSel = this.selectedItemIds.has(id);
+        card.classList.toggle('selected', isSel);
+        const selBtn = card.querySelector('.item-select-btn');
+        if (selBtn) {
+          selBtn.classList.toggle('selected', isSel);
+          const icon = selBtn.querySelector('i, svg');
+          if (icon) {
+            icon.setAttribute('data-lucide', isSel ? 'check' : 'circle');
+          }
+        }
       }
     });
 

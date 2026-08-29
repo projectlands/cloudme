@@ -438,12 +438,22 @@
 
   <!-- Media Lightbox Modal -->
   <div id="mediaLightbox" class="lightbox-modal">
+    <!-- Prev Navigation Button -->
+    <button id="lightboxBtnPrev" class="lightbox-nav-btn prev" title="Sebelumnya (←)" onclick="app.navigateLightbox(-1)">
+      <i data-lucide="chevron-left"></i>
+    </button>
+    <!-- Next Navigation Button -->
+    <button id="lightboxBtnNext" class="lightbox-nav-btn next" title="Berikutnya (→)" onclick="app.navigateLightbox(1)">
+      <i data-lucide="chevron-right"></i>
+    </button>
+
     <div class="lightbox-header">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <i data-lucide="file" id="lightboxFileIcon" style="width: 20px; height: 20px;"></i>
-        <span id="lightboxFileName" style="font-weight: 500; font-size: 1rem;">File Preview</span>
+      <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0; flex: 1;">
+        <i data-lucide="file" id="lightboxFileIcon" style="width: 20px; height: 20px; flex-shrink: 0;"></i>
+        <span id="lightboxFileName" style="font-weight: 500; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">File Preview</span>
+        <span id="lightboxCounter" class="lightbox-counter">1 / 1</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
         <button class="btn-icon" id="btnLightboxRename" title="Ganti Nama" onclick="app.renameActiveLightboxFile()">
           <i data-lucide="edit-3"></i>
         </button>
@@ -629,6 +639,37 @@
       <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="app.generateNewShareLink()">
         <span>Perbarui Pengaturan Tautan</span>
       </button>
+    </div>
+  </div>
+
+  <!-- Move Item(s) Modal -->
+  <div id="moveModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 480px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div class="brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;">
+            <i data-lucide="folder-input" style="width: 18px; height: 18px;"></i>
+          </div>
+          <h3 id="moveModalTitle" style="font-size: 1.2rem;">Pindahkan Item</h3>
+        </div>
+        <button class="btn-icon" onclick="app.closeModal('moveModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Pilih folder tujuan untuk memindahkan item:
+      </p>
+
+      <div id="moveFolderList" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 1.25rem; padding-right: 4px;">
+        <!-- Loaded via JS -->
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="app.closeModal('moveModal')">Batal</button>
+        <button class="btn btn-primary" id="btnConfirmMove" onclick="app.executeMove()">
+          <i data-lucide="check"></i>
+          <span>Pindahkan ke Sini</span>
+        </button>
+      </div>
     </div>
   </div>
 
