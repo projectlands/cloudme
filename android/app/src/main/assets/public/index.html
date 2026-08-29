@@ -148,8 +148,8 @@
       </div>
 
       <!-- Hidden file inputs -->
-      <input type="file" id="fileUploadInput" multiple style="display: none;" onchange="app.handleFilesSelected(this.files)">
-      <input type="file" id="folderUploadInput" webkitdirectory directory multiple style="display: none;" onchange="app.handleFilesSelected(this.files)">
+      <input type="file" id="fileUploadInput" multiple style="display: none;" onchange="app.handleFilesSelected(this.files); this.value = '';">
+      <input type="file" id="folderUploadInput" webkitdirectory directory multiple style="display: none;" onchange="app.handleFilesSelected(this.files); this.value = '';">
 
       <!-- Navigation Links -->
       <nav class="nav-group">
@@ -410,6 +410,10 @@
       <i data-lucide="folder-input" style="width: 16px; height: 16px;"></i>
       <span>Pindahkan ke...</span>
     </div>
+    <div class="context-menu-item" id="ctxDetails" onclick="app.ctxAction('details')">
+      <i data-lucide="info" style="width: 16px; height: 16px;"></i>
+      <span>Detail & Informasi</span>
+    </div>
     <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
     <div class="context-menu-item" style="color: var(--color-danger);" id="ctxDelete" onclick="app.ctxAction('delete')">
       <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
@@ -420,15 +424,15 @@
   <!-- Floating Upload Tray (Bottom Right) -->
   <div id="uploadTray" class="upload-tray">
     <div class="upload-tray-header">
-      <div style="display: flex; align-items: center; gap: 0.5rem;">
-        <i data-lucide="upload-cloud" style="width: 18px; height: 18px; color: var(--accent-primary);"></i>
-        <span id="uploadTrayTitle">Mengunggah berkas...</span>
+      <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1;">
+        <i data-lucide="upload-cloud" style="width: 18px; height: 18px; color: var(--accent-primary); flex-shrink: 0;"></i>
+        <span id="uploadTrayTitle" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem;">Mengunggah berkas...</span>
       </div>
-      <div style="display: flex; gap: 0.4rem;">
-        <button class="btn-icon" style="width: 24px; height: 24px; border: none;" onclick="app.toggleUploadTrayMinimize()">
+      <div style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
+        <button class="btn-icon" style="width: 26px; height: 26px; border: none;" onclick="app.toggleUploadTrayMinimize()" title="Perkecil / Perluas">
           <i data-lucide="minus" style="width: 14px; height: 14px;"></i>
         </button>
-        <button class="btn-icon" style="width: 24px; height: 24px; border: none;" onclick="app.closeUploadTray()">
+        <button class="btn-icon" style="width: 26px; height: 26px; border: none;" onclick="app.closeUploadTray()" title="Tutup">
           <i data-lucide="x" style="width: 14px; height: 14px;"></i>
         </button>
       </div>
@@ -454,6 +458,9 @@
         <span id="lightboxCounter" class="lightbox-counter">1 / 1</span>
       </div>
       <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+        <button class="btn-icon" id="btnLightboxInfo" title="Detail & Informasi Berkas" onclick="app.openDetailsModal(app.activeLightboxItem)">
+          <i data-lucide="info"></i>
+        </button>
         <button class="btn-icon" id="btnLightboxRename" title="Ganti Nama" onclick="app.renameActiveLightboxFile()">
           <i data-lucide="edit-3"></i>
         </button>
@@ -642,33 +649,71 @@
     </div>
   </div>
 
-  <!-- Move Item(s) Modal -->
+  <!-- Move Item(s) Hierarchical Modal -->
   <div id="moveModal" class="modal-backdrop">
-    <div class="modal-card" style="max-width: 480px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-        <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <div class="brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;">
+    <div class="modal-card" style="max-width: 500px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem; min-width: 0;">
+          <div class="brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem; flex-shrink: 0;">
             <i data-lucide="folder-input" style="width: 18px; height: 18px;"></i>
           </div>
-          <h3 id="moveModalTitle" style="font-size: 1.2rem;">Pindahkan Item</h3>
+          <h3 id="moveModalTitle" style="font-size: 1.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Pindahkan Item</h3>
         </div>
         <button class="btn-icon" onclick="app.closeModal('moveModal')"><i data-lucide="x"></i></button>
       </div>
 
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
-        Pilih folder tujuan untuk memindahkan item:
-      </p>
+      <!-- Breadcrumbs in Move Modal -->
+      <div id="moveBreadcrumbs" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; background: var(--bg-tertiary); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); font-size: 0.82rem; margin-bottom: 0.75rem; border: 1px solid var(--border-color); overflow-x: auto;">
+        <!-- Breadcrumbs rendered dynamically -->
+      </div>
 
-      <div id="moveFolderList" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 1.25rem; padding-right: 4px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Pilih folder di bawah atau pindahkan ke lokasi ini:</span>
+        <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; border-radius: var(--radius-md);" onclick="app.promptNewFolderInMoveModal()" title="Buat folder baru di dalam lokasi ini">
+          <i data-lucide="folder-plus" style="width: 13px; height: 13px;"></i>
+          <span>+ Folder Baru</span>
+        </button>
+      </div>
+
+      <div id="moveFolderList" style="max-height: 260px; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 1.25rem; padding-right: 4px;">
         <!-- Loaded via JS -->
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-        <button class="btn btn-secondary" onclick="app.closeModal('moveModal')">Batal</button>
-        <button class="btn btn-primary" id="btnConfirmMove" onclick="app.executeMove()">
-          <i data-lucide="check"></i>
-          <span>Pindahkan ke Sini</span>
+      <div class="move-modal-footer">
+        <button class="btn btn-secondary" id="btnMoveUpLevel" style="font-size: 0.82rem;" onclick="app.navigateMoveModalUp()" title="Kembali ke folder sebelumnya">
+          <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i>
+          <span>Kembali</span>
         </button>
+        <div class="move-modal-footer-actions">
+          <button class="btn btn-secondary" onclick="app.closeModal('moveModal')">Batal</button>
+          <button class="btn btn-primary" id="btnConfirmMove" onclick="app.executeMove()">
+            <i data-lucide="check"></i>
+            <span id="btnConfirmMoveText">Pindahkan ke Sini</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- File / Folder Details Modal -->
+  <div id="fileDetailsModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 520px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 0.6rem; min-width: 0;">
+          <div class="brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem; flex-shrink: 0; background: rgba(99, 102, 241, 0.2); color: var(--accent-primary);">
+            <i data-lucide="info" style="width: 18px; height: 18px;"></i>
+          </div>
+          <h3 style="font-size: 1.15rem;">Detail & Informasi Berkas</h3>
+        </div>
+        <button class="btn-icon" onclick="app.closeModal('fileDetailsModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div id="fileDetailsContent" style="flex: 1; overflow-y: auto; padding-right: 4px;">
+        <!-- Filled dynamically by app.openDetailsModal(item) -->
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; flex-shrink: 0;">
+        <button class="btn btn-secondary" onclick="app.closeModal('fileDetailsModal')">Tutup</button>
       </div>
     </div>
   </div>
@@ -769,7 +814,7 @@
   </div>
 
   <!-- Hidden Photo & Video specific input for mobile -->
-  <input type="file" id="mobilePhotoUploadInput" accept="image/*,video/*" multiple style="display: none;" onchange="app.handleFilesSelected(this.files)">
+  <input type="file" id="mobilePhotoUploadInput" accept="image/*,video/*" multiple style="display: none;" onchange="app.handleFilesSelected(this.files); this.value = '';">
 
   <!-- Google Takeout Migration Modal -->
   <div id="takeoutModal" class="modal-backdrop">

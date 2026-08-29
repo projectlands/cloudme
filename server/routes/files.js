@@ -118,6 +118,7 @@ router.get('/', authMiddleware, (req, res) => {
     else if (type === 'audio') query += " AND mime_type LIKE 'audio/%'";
     else if (type === 'document') query += " AND (mime_type LIKE '%pdf%' OR mime_type LIKE '%word%' OR mime_type LIKE '%text%' OR mime_type LIKE '%sheet%' OR mime_type LIKE '%presentation%')";
     else if (type === 'archive') query += " AND (mime_type LIKE '%zip%' OR mime_type LIKE '%tar%' OR mime_type LIKE '%rar%' OR mime_type LIKE '%7z%')";
+    else if (type === 'folder') query += " AND is_folder = 1";
 
     // Sorting: Always keep folders first when browsing normally
     let orderSql = 'is_folder DESC, ';
@@ -769,6 +770,76 @@ router.post('/upload-chunk', authMiddleware, upload.single('chunk'), async (req,
     isCompleted: false,
     chunkIndex: parseInt(chunkIndex, 10)
   });
+});
+
+// -------------------------------------------------------------
+// 4.5. GET /api/files/:id/details - Comprehensive Metadata, Path, Checksum, EXIF
+// -------------------------------------------------------------
+router.get('/:id/details', authMiddleware, (req, res) => {
+  try {
+    const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+    if (!file) {
+      return res.status(404).json({ error: 'File atau folder tidak ditemukan.' });
+    }
+
+    // Build Folder Path Hierarchy (breadcrumb trail)
+    const pathHierarchy = [];
+    let currentParent = file.parent_id;
+    while (currentParent) {
+      const parentFolder = db.prepare('SELECT id, name, parent_id FROM files WHERE id = ? AND user_id = ?').get(currentParent, req.user.id);
+      if (parentFolder) {
+        pathHierarchy.unshift({ id: parentFolder.id, name: parentFolder.name });
+        currentParent = parentFolder.parent_id;
+      } else {
+        break;
+      }
+    }
+    pathHierarchy.unshift({ id: 'root', name: 'Drive Utama' });
+
+    let exifData = null;
+    let folderStats = null;
+
+    if (file.is_folder === 1) {
+      const directChildren = db.prepare('SELECT id, is_folder, size_bytes FROM files WHERE parent_id = ? AND user_id = ? AND is_trashed = 0').all(file.id, req.user.id);
+      const subfoldersCount = directChildren.filter(c => c.is_folder === 1).length;
+      const subfilesCount = directChildren.filter(c => c.is_folder === 0).length;
+
+      const allDescendants = getAllDescendantItems(file.id, req.user.id);
+      const totalSize = allDescendants.filter(d => d.is_folder === 0).reduce((acc, cur) => acc + (cur.size_bytes || 0), 0);
+
+      folderStats = {
+        subfoldersCount,
+        subfilesCount,
+        totalItems: subfoldersCount + subfilesCount,
+        totalSizeBytes: totalSize
+      };
+    } else {
+      const photo = db.prepare('SELECT * FROM photo_metadata WHERE file_id = ?').get(file.id);
+      if (photo) {
+        exifData = {
+          camera_make: photo.camera_make,
+          camera_model: photo.camera_model,
+          date_taken: photo.date_taken,
+          width: photo.width,
+          height: photo.height,
+          latitude: photo.latitude,
+          longitude: photo.longitude,
+          iso: photo.iso,
+          focal_length: photo.focal_length
+        };
+      }
+    }
+
+    res.json({
+      file,
+      pathHierarchy,
+      exif: exifData,
+      folderStats
+    });
+  } catch (err) {
+    console.error('File details error:', err);
+    res.status(500).json({ error: 'Gagal mengambil detail file.' });
+  }
 });
 
 // -------------------------------------------------------------

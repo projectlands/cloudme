@@ -42,7 +42,7 @@ class CloudMeApp {
     this.activeContextItem = null;
     this.activeLightboxItem = null;
     this.itemsCache = [];
-    this.activeUploads = [];
+    this.activeUploads = new Map();
 
     this.init();
   }
@@ -258,6 +258,8 @@ class CloudMeApp {
         this.handleFilesSelected(e.dataTransfer.files);
       }
     });
+
+    window.addEventListener('resize', () => this.updateFabPosition());
   }
 
   toggleMobileSidebar(open) {
@@ -874,9 +876,6 @@ class CloudMeApp {
         el.className = `folder-card ${isSel ? 'selected' : ''}`;
         el.setAttribute('data-item-id', f.id);
         el.innerHTML = `
-          <button type="button" class="item-select-btn item-select-btn-folder ${isSel ? 'selected' : ''}" title="Pilih folder ini" onclick="event.stopPropagation(); app.toggleItemSelect('${f.id}', !app.selectedItemIds.has('${f.id}'))">
-            <i data-lucide="${isSel ? 'check' : 'circle'}" style="width: 14px; height: 14px;"></i>
-          </button>
           <i data-lucide="folder" class="folder-icon" style="color: #fbbf24; flex-shrink: 0;"></i>
           <span class="folder-name" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(f.name)}</span>
           ${f.is_starred ? '<i data-lucide="star" style="width: 14px; height: 14px; color: #f59e0b; flex-shrink: 0;"></i>' : ''}
@@ -889,6 +888,7 @@ class CloudMeApp {
           window.location.hash = `#drive/${f.id}`;
         });
         el.addEventListener('contextmenu', (e) => this.showContextMenu(e, f));
+        this.attachLongPress(el, () => this.toggleItemSelect(f.id, true));
         folderGrid.appendChild(el);
       });
     } else {
@@ -922,9 +922,6 @@ class CloudMeApp {
       }
 
       el.innerHTML = `
-        <button type="button" class="item-select-btn ${isSel ? 'selected' : ''}" title="Pilih berkas ini" onclick="event.stopPropagation(); app.toggleItemSelect('${f.id}', !app.selectedItemIds.has('${f.id}'))">
-          <i data-lucide="${isSel ? 'check' : 'circle'}" style="width: 14px; height: 14px;"></i>
-        </button>
         <div class="file-thumbnail-container" style="position: relative;">
           ${thumbnailHtml}
           <button class="btn-icon" style="position: absolute; top: 6px; right: 6px; background: rgba(15, 23, 42, 0.85); color: #ffffff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 5;" title="Opsi Berkas" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${f.id}'))">
@@ -943,6 +940,7 @@ class CloudMeApp {
       el.addEventListener('click', (e) => this.handleItemClick(e, f));
       el.addEventListener('dblclick', () => this.openLightbox(f));
       el.addEventListener('contextmenu', (e) => this.showContextMenu(e, f));
+      this.attachLongPress(el, () => this.toggleItemSelect(f.id, true));
       fileGrid.appendChild(el);
     });
 
@@ -1056,9 +1054,6 @@ class CloudMeApp {
               if (isVideo) {
                 return `
                   <div class="photo-card ${isSel ? 'selected' : ''}" data-item-id="${item.id}" onclick="app.handlePhotoClick(event, app.getItemById('${item.id}'))" style="background: linear-gradient(135deg, #18181b 0%, #09090b 100%);">
-                    <button type="button" class="photo-select-btn ${isSel ? 'selected' : ''}" title="Pilih video ini" onclick="app.togglePhotoSelect(event, '${item.id}')">
-                      <i data-lucide="${isSel ? 'check' : 'circle'}" style="width: 14px; height: 14px;"></i>
-                    </button>
                     <button type="button" class="photo-menu-btn" title="Opsi Video" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${item.id}'))">
                       <i data-lucide="more-vertical" style="width: 14px; height: 14px;"></i>
                     </button>
@@ -1077,9 +1072,6 @@ class CloudMeApp {
               }
               return `
                 <div class="photo-card ${isSel ? 'selected' : ''}" data-item-id="${item.id}" onclick="app.handlePhotoClick(event, app.getItemById('${item.id}'))">
-                  <button type="button" class="photo-select-btn ${isSel ? 'selected' : ''}" title="Pilih foto ini" onclick="app.togglePhotoSelect(event, '${item.id}')">
-                    <i data-lucide="${isSel ? 'check' : 'circle'}" style="width: 14px; height: 14px;"></i>
-                  </button>
                   <button type="button" class="photo-menu-btn" title="Opsi Foto" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${item.id}'))">
                     <i data-lucide="more-vertical" style="width: 14px; height: 14px;"></i>
                   </button>
@@ -1102,6 +1094,11 @@ class CloudMeApp {
       timeline.forEach(g => g.items.forEach(i => {
         this.itemsCache.push(i);
       }));
+
+      view.querySelectorAll('.photo-card').forEach(card => {
+        const id = card.getAttribute('data-item-id');
+        if (id) this.attachLongPress(card, () => this.toggleItemSelect(id, true));
+      });
 
       if (window.lucide) lucide.createIcons();
     } catch (err) {
@@ -2095,105 +2092,249 @@ class CloudMeApp {
   }
 
   // -------------------------------------------------------------
-  // 7. Upload Management (Chunked & Streaming)
+  // 7. Upload Management (Chunked, Streaming, Cancel, Retry & Dynamic FAB)
   // -------------------------------------------------------------
   async handleFilesSelected(files) {
     if (!files || files.length === 0) return;
     const fileList = Array.from(files);
     
+    if (!this.activeUploads || !(this.activeUploads instanceof Map)) {
+      this.activeUploads = new Map();
+    }
+
     this.openUploadTray();
     
     for (const file of fileList) {
-      if (file.size > 20 * 1024 * 1024) {
-        // Use Chunked Upload for files > 20MB
-        await this.uploadLargeFileChunked(file);
-      } else {
-        // Standard Upload
-        await this.uploadSingleFile(file);
-      }
+      const uploadId = (file.size > 20 * 1024 * 1024 ? 'chunk_' : 'up_') + Date.now() + Math.random().toString(36).substring(2, 7);
+      const uploadItem = {
+        id: uploadId,
+        file: file,
+        parentId: this.currentFolderId,
+        status: 'pending',
+        percent: 0,
+        abortController: null,
+        isChunked: file.size > 20 * 1024 * 1024
+      };
+      this.activeUploads.set(uploadId, uploadItem);
+      this.addUploadTrayItem(uploadId, file.name, file.size);
+      
+      this.startUploadItem(uploadItem);
     }
-
-    this.loadFiles();
-    this.checkSystemStatus(); // refresh quota
   }
 
-  async uploadSingleFile(file) {
-    const uploadId = 'up_' + Date.now() + Math.random().toString(36).substring(2, 6);
-    this.addUploadTrayItem(uploadId, file.name, file.size);
-
-    const formData = new FormData();
-    formData.append('files', file);
-    if (this.currentFolderId) formData.append('parentId', this.currentFolderId);
+  async startUploadItem(uploadItem) {
+    const { id, isChunked } = uploadItem;
+    uploadItem.status = 'uploading';
+    uploadItem.abortController = new AbortController();
+    this.updateUploadTrayItem(id, 0, 'Mengunggah...', 'uploading');
 
     try {
-      const res = await fetch('/api/files/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${this.token}` },
-        body: formData
-      });
-
-      if (res.ok) {
-        this.updateUploadTrayItem(uploadId, 100, 'Selesai');
+      if (isChunked) {
+        await this.uploadLargeFileChunked(uploadItem);
       } else {
-        const errData = await res.json();
-        this.updateUploadTrayItem(uploadId, 0, 'Gagal: ' + (errData.error || ''));
+        await this.uploadSingleFile(uploadItem);
       }
+      this.showToast(`✅ "${uploadItem.file.name}" berhasil diunggah`, 'success');
     } catch (err) {
-      this.updateUploadTrayItem(uploadId, 0, 'Error koneksi');
+      if (err.name === 'AbortError' || uploadItem.status === 'cancelled') {
+        uploadItem.status = 'cancelled';
+        this.updateUploadTrayItem(id, 0, 'Dibatalkan', 'cancelled');
+      } else {
+        uploadItem.status = 'failed';
+        this.updateUploadTrayItem(id, 0, 'Gagal: ' + (err.message || 'Error koneksi'), 'failed');
+        this.showToast(`❌ Gagal mengunggah "${uploadItem.file.name}": ${err.message || 'Error'}`, 'error');
+      }
+    } finally {
+      this.updateTrayHeaderSummary();
+      this.updateFabPosition();
+      this.loadFiles();
+      this.checkSystemStatus();
     }
   }
 
-  async uploadLargeFileChunked(file) {
-    const uploadId = 'chunk_' + Date.now();
+  async uploadSingleFile(uploadItem) {
+    const { id, file, parentId, abortController } = uploadItem;
+    const formData = new FormData();
+    formData.append('files', file);
+    if (parentId && parentId !== 'root') formData.append('parentId', parentId);
+
+    const targetUrl = window.apiUrl('/api/files/upload');
+
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', targetUrl, true);
+      if (this.token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${this.token}`);
+      }
+
+      abortController.signal.addEventListener('abort', () => {
+        try { xhr.abort(); } catch (e) {}
+        const err = new Error('Unggahan dibatalkan');
+        err.name = 'AbortError';
+        reject(err);
+      });
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && uploadItem.status === 'uploading') {
+          const percent = Math.min(Math.round((e.loaded / e.total) * 100), 99);
+          uploadItem.percent = percent;
+          this.updateUploadTrayItem(id, percent, `${percent}%`, 'uploading');
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          uploadItem.status = 'completed';
+          uploadItem.percent = 100;
+          this.updateUploadTrayItem(id, 100, 'Selesai', 'completed');
+          resolve(xhr.response);
+        } else {
+          try {
+            const res = JSON.parse(xhr.responseText);
+            reject(new Error(res.error || `HTTP ${xhr.status}`));
+          } catch (e) {
+            reject(new Error(`HTTP ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Koneksi terputus ke server'));
+      xhr.ontimeout = () => reject(new Error('Waktu permintaan habis (timeout)'));
+      xhr.send(formData);
+    });
+  }
+
+  async uploadLargeFileChunked(uploadItem) {
+    const { id, file, parentId, abortController } = uploadItem;
     const chunkSize = 5 * 1024 * 1024; // 5MB per chunk
     const totalChunks = Math.ceil(file.size / chunkSize);
 
-    this.addUploadTrayItem(uploadId, file.name, file.size);
-
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      if (abortController.signal.aborted) {
+        const err = new Error('Unggahan dibatalkan');
+        err.name = 'AbortError';
+        throw err;
+      }
+
       const start = chunkIndex * chunkSize;
       const end = Math.min(file.size, start + chunkSize);
       const chunkBlob = file.slice(start, end);
 
       const formData = new FormData();
       formData.append('chunk', chunkBlob, file.name);
-      formData.append('uploadId', uploadId);
+      formData.append('uploadId', id);
       formData.append('chunkIndex', chunkIndex);
       formData.append('totalChunks', totalChunks);
       formData.append('fileName', file.name);
       formData.append('totalSize', file.size);
-      if (this.currentFolderId) formData.append('parentId', this.currentFolderId);
+      if (parentId && parentId !== 'root') formData.append('parentId', parentId);
 
       const res = await fetch('/api/files/upload-chunk', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${this.token}` },
-        body: formData
+        body: formData,
+        signal: abortController.signal
       });
 
       if (!res.ok) {
-        this.updateUploadTrayItem(uploadId, 0, 'Gagal upload chunk');
-        return;
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Gagal chunk ${chunkIndex + 1}/${totalChunks}`);
       }
 
       const percent = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-      this.updateUploadTrayItem(uploadId, percent, `${percent}%`);
+      uploadItem.percent = percent;
+      this.updateUploadTrayItem(id, percent, `${percent}%`, 'uploading');
     }
 
-    this.updateUploadTrayItem(uploadId, 100, 'Selesai');
+    uploadItem.status = 'completed';
+    uploadItem.percent = 100;
+    this.updateUploadTrayItem(id, 100, 'Selesai', 'completed');
+  }
+
+  cancelUpload(id) {
+    if (!this.activeUploads) return;
+    const uploadItem = this.activeUploads.get(id);
+    if (uploadItem && uploadItem.abortController) {
+      uploadItem.status = 'cancelled';
+      uploadItem.abortController.abort();
+      this.updateUploadTrayItem(id, 0, 'Dibatalkan', 'cancelled');
+      this.updateTrayHeaderSummary();
+      this.updateFabPosition();
+      this.showToast(`Unggahan "${uploadItem.file.name}" dibatalkan.`, 'info');
+    }
+  }
+
+  retryUpload(id) {
+    if (!this.activeUploads) return;
+    const uploadItem = this.activeUploads.get(id);
+    if (uploadItem) {
+      this.showToast(`Mengulang unggahan "${uploadItem.file.name}"...`, 'info');
+      this.startUploadItem(uploadItem);
+    }
+  }
+
+  cancelAllUploads() {
+    if (!this.activeUploads) return;
+    let cancelledCount = 0;
+    this.activeUploads.forEach((uploadItem) => {
+      if (uploadItem.status === 'uploading' || uploadItem.status === 'pending') {
+        uploadItem.status = 'cancelled';
+        if (uploadItem.abortController) uploadItem.abortController.abort();
+        this.updateUploadTrayItem(uploadItem.id, 0, 'Dibatalkan', 'cancelled');
+        cancelledCount++;
+      }
+    });
+    if (cancelledCount > 0) {
+      this.showToast(`Membatalkan ${cancelledCount} unggahan.`, 'info');
+    }
+    this.updateTrayHeaderSummary();
+    this.updateFabPosition();
   }
 
   openUploadTray() {
     const tray = document.getElementById('uploadTray');
-    if (tray) tray.style.display = 'block';
+    if (tray) {
+      tray.style.display = 'block';
+      const body = document.getElementById('uploadTrayBody');
+      if (body) body.style.display = 'flex';
+      this.updateFabPosition();
+    }
   }
+
   closeUploadTray() {
     const tray = document.getElementById('uploadTray');
-    if (tray) tray.style.display = 'none';
+    if (tray) {
+      tray.style.display = 'none';
+      this.updateFabPosition();
+    }
   }
+
   toggleUploadTrayMinimize() {
     const body = document.getElementById('uploadTrayBody');
-    if (body) body.style.display = body.style.display === 'none' ? 'flex' : 'none';
+    if (body) {
+      body.style.display = (body.style.display === 'none') ? 'flex' : 'none';
+      setTimeout(() => this.updateFabPosition(), 50);
+    }
   }
+
+  updateFabPosition() {
+    const fab = document.getElementById('mobileFab');
+    const tray = document.getElementById('uploadTray');
+    if (!fab) return;
+    if (!tray || tray.style.display === 'none') {
+      fab.style.bottom = '';
+      return;
+    }
+    if (window.innerWidth <= 768) {
+      const trayRect = tray.getBoundingClientRect();
+      const bottomNavHeight = 65;
+      const trayHeight = trayRect.height > 0 ? trayRect.height : 120;
+      fab.style.bottom = `${bottomNavHeight + trayHeight + 14}px`;
+    } else {
+      fab.style.bottom = '';
+    }
+  }
+
   addUploadTrayItem(id, name, size) {
     const body = document.getElementById('uploadTrayBody');
     if (!body) return;
@@ -2201,21 +2342,95 @@ class CloudMeApp {
     item.className = 'upload-item-card';
     item.id = `tray_item_${id}`;
     item.innerHTML = `
-      <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
-        <span style="font-weight: 500; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(name)}</span>
-        <span id="tray_status_${id}" style="color: var(--accent-primary);">0%</span>
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; margin-bottom: 6px; gap: 0.5rem;">
+        <span style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;" title="${this.escapeHtml(name)}">${this.escapeHtml(name)}</span>
+        <div id="tray_actions_${id}" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <span id="tray_status_${id}" style="color: var(--accent-primary); font-weight: 500; font-size: 0.78rem;">0%</span>
+          <button type="button" class="tray-action-btn cancel" onclick="app.cancelUpload('${id}')" title="Batalkan unggahan">
+            <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+            <span>Batal</span>
+          </button>
+        </div>
       </div>
-      <div class="progress-bar-bg" style="height: 4px;">
-        <div id="tray_prog_${id}" class="progress-bar-fill" style="width: 0%;"></div>
+      <div class="progress-bar-bg" style="height: 5px; border-radius: var(--radius-full); overflow: hidden; background: var(--bg-tertiary);">
+        <div id="tray_prog_${id}" class="progress-bar-fill" style="width: 0%; height: 100%; background: var(--accent-gradient); transition: width 0.15s ease;"></div>
       </div>
     `;
     body.prepend(item);
+    if (window.lucide) lucide.createIcons();
+    this.updateTrayHeaderSummary();
+    setTimeout(() => this.updateFabPosition(), 50);
   }
-  updateUploadTrayItem(id, percent, status) {
+
+  updateUploadTrayItem(id, percent, statusText, statusType = 'uploading') {
     const prog = document.getElementById(`tray_prog_${id}`);
     const st = document.getElementById(`tray_status_${id}`);
-    if (prog) prog.style.width = `${percent}%`;
-    if (st) st.textContent = status;
+    const actions = document.getElementById(`tray_actions_${id}`);
+    
+    if (prog) {
+      prog.style.width = `${percent}%`;
+      if (statusType === 'completed') {
+        prog.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+      } else if (statusType === 'failed') {
+        prog.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+      } else if (statusType === 'cancelled') {
+        prog.style.background = 'var(--text-muted)';
+      } else {
+        prog.style.background = 'var(--accent-gradient)';
+      }
+    }
+
+    if (actions) {
+      if (statusType === 'uploading' || statusType === 'pending') {
+        actions.innerHTML = `
+          <span id="tray_status_${id}" style="color: var(--accent-primary); font-weight: 500; font-size: 0.78rem;">${this.escapeHtml(statusText)}</span>
+          <button type="button" class="tray-action-btn cancel" onclick="app.cancelUpload('${id}')" title="Batalkan unggahan">
+            <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+            <span>Batal</span>
+          </button>
+        `;
+      } else if (statusType === 'completed') {
+        actions.innerHTML = `
+          <span id="tray_status_${id}" style="color: #10b981; font-weight: 500; font-size: 0.78rem; display: flex; align-items: center; gap: 3px;">
+            <i data-lucide="check" style="width: 12px; height: 12px;"></i> Selesai
+          </span>
+        `;
+      } else if (statusType === 'failed' || statusType === 'cancelled') {
+        const isFailed = statusType === 'failed';
+        actions.innerHTML = `
+          <span id="tray_status_${id}" style="color: ${isFailed ? '#ef4444' : 'var(--text-muted)'}; font-weight: 500; font-size: 0.76rem;">${this.escapeHtml(statusText)}</span>
+          <button type="button" class="tray-action-btn retry" onclick="app.retryUpload('${id}')" title="Coba unggah lagi">
+            <i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i>
+            <span>Coba Lagi</span>
+          </button>
+        `;
+      }
+      if (window.lucide) lucide.createIcons();
+    } else if (st) {
+      st.textContent = statusText;
+    }
+  }
+
+  updateTrayHeaderSummary() {
+    if (!this.activeUploads) return;
+    const titleEl = document.getElementById('uploadTrayTitle');
+    if (!titleEl) return;
+    let uploading = 0, completed = 0, failed = 0;
+    this.activeUploads.forEach(u => {
+      if (u.status === 'uploading' || u.status === 'pending') uploading++;
+      else if (u.status === 'completed') completed++;
+      else if (u.status === 'failed' || u.status === 'cancelled') failed++;
+    });
+
+    if (uploading > 0) {
+      titleEl.textContent = `Mengunggah ${uploading} berkas...`;
+    } else if (failed > 0 && completed > 0) {
+      titleEl.textContent = `${completed} Selesai, ${failed} Gagal`;
+    } else if (failed > 0) {
+      titleEl.textContent = `${failed} Gagal diunggah`;
+    } else {
+      titleEl.textContent = `${completed} Berkas Selesai`;
+    }
   }
 
   // -------------------------------------------------------------
@@ -2405,6 +2620,8 @@ class CloudMeApp {
       this.openRenameModal(item);
     } else if (action === 'move') {
       this.openMoveModal(item);
+    } else if (action === 'details') {
+      this.openDetailsModal(item);
     } else if (action === 'delete') {
       const isTrash = (this.currentNav === 'trash' || item.is_trashed === 1);
       const confirmed = await this.showConfirm(
@@ -2432,7 +2649,7 @@ class CloudMeApp {
   }
 
   // -------------------------------------------------------------
-  // 9. Lightbox Media Previewer (Photos, Video, Audio, PDF, Text)
+  // 9. Lightbox Media Previewer (Photos, Video, Audio, PDF, Text) & Pinch-to-Zoom
   // -------------------------------------------------------------
   openLightbox(item) {
     if (!item) return;
@@ -2460,12 +2677,38 @@ class CloudMeApp {
     const lightbox = document.getElementById('mediaLightbox');
     if (lightbox) lightbox.style.display = 'flex';
 
+    this.resetLightboxZoom();
     this.renderLightboxItem(queue[this.lightboxCurrentIndex]);
     this.setupLightboxListeners();
   }
 
+  resetLightboxZoom() {
+    this.lightboxScale = 1;
+    this.lightboxTranslateX = 0;
+    this.lightboxTranslateY = 0;
+    const img = document.querySelector('#lightboxMediaContainer img');
+    if (img) {
+      img.style.transform = 'none';
+      img.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      img.style.cursor = 'grab';
+    }
+  }
+
+  applyLightboxZoom(smooth = false) {
+    const img = document.querySelector('#lightboxMediaContainer img');
+    if (!img) return;
+    if (smooth) {
+      img.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    } else {
+      img.style.transition = 'none';
+    }
+    img.style.transform = `translate(${this.lightboxTranslateX || 0}px, ${this.lightboxTranslateY || 0}px) scale(${this.lightboxScale || 1})`;
+    img.style.cursor = (this.lightboxScale || 1) > 1.05 ? 'grab' : 'zoom-in';
+  }
+
   navigateLightbox(direction) {
     if (!this.lightboxQueue || this.lightboxQueue.length <= 1) return;
+    this.resetLightboxZoom();
     const len = this.lightboxQueue.length;
     this.lightboxCurrentIndex = (this.lightboxCurrentIndex + direction + len) % len;
     this.renderLightboxItem(this.lightboxQueue[this.lightboxCurrentIndex]);
@@ -2497,7 +2740,17 @@ class CloudMeApp {
     const mimeType = item.mime_type || '';
 
     if (mimeType.startsWith('image/')) {
-      container.innerHTML = `<img src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" alt="${this.escapeHtml(item.name)}">`;
+      container.innerHTML = `
+        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; touch-action: none;">
+          <img src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" 
+               alt="${this.escapeHtml(item.name)}" 
+               style="max-width: 90%; max-height: 85vh; object-fit: contain; border-radius: var(--radius-md); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8); cursor: zoom-in; user-select: none; -webkit-user-drag: none; will-change: transform;">
+          <div id="lightboxZoomHint" style="position: absolute; bottom: 16px; right: 16px; background: rgba(15, 23, 42, 0.75); color: #ffffff; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.72rem; display: flex; align-items: center; gap: 4px; pointer-events: none; backdrop-filter: blur(6px);">
+            <i data-lucide="zoom-in" style="width: 13px; height: 13px;"></i>
+            <span>Cubot 2 Jari / Scroll untuk Zoom</span>
+          </div>
+        </div>
+      `;
     } else if (mimeType.startsWith('video/')) {
       container.innerHTML = `
         <video controls autoplay style="max-width: 90%; max-height: 85vh;">
@@ -2546,23 +2799,103 @@ class CloudMeApp {
           this.navigateLightbox(1);
         } else if (e.key === 'Escape') {
           this.closeLightbox();
+        } else if (e.key === '+' || e.key === '=') {
+          this.lightboxScale = Math.min((this.lightboxScale || 1) + 0.4, 5);
+          this.applyLightboxZoom(true);
+        } else if (e.key === '-') {
+          this.lightboxScale = Math.max((this.lightboxScale || 1) - 0.4, 1);
+          if (this.lightboxScale <= 1.05) this.resetLightboxZoom();
+          else this.applyLightboxZoom(true);
+        } else if (e.key === '0') {
+          this.resetLightboxZoom();
         }
       }
     });
 
     let touchStartX = 0;
     let touchStartY = 0;
+    let initialDistance = 0;
+    let initialScale = 1;
+    let isPinching = false;
+    let lastTapTime = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
     const lightbox = document.getElementById('mediaLightbox');
     if (lightbox) {
+      // Touch Start
       lightbox.addEventListener('touchstart', (e) => {
-        if (e.touches && e.touches.length === 1) {
+        const img = document.querySelector('#lightboxMediaContainer img');
+        if (e.touches.length === 2 && img) {
+          // 2-finger pinch start
+          isPinching = true;
+          initialDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialScale = this.lightboxScale || 1;
+        } else if (e.touches.length === 1) {
+          isPinching = false;
           touchStartX = e.touches[0].clientX;
           touchStartY = e.touches[0].clientY;
-        }
-      }, { passive: true });
+          dragStartX = e.touches[0].clientX - (this.lightboxTranslateX || 0);
+          dragStartY = e.touches[0].clientY - (this.lightboxTranslateY || 0);
 
+          // Double tap detection
+          const now = Date.now();
+          if (now - lastTapTime < 300 && img && (e.target === img || e.target.closest('#lightboxMediaContainer'))) {
+            e.preventDefault();
+            if ((this.lightboxScale || 1) > 1.1) {
+              this.resetLightboxZoom();
+            } else {
+              this.lightboxScale = 2.5;
+              this.lightboxTranslateX = 0;
+              this.lightboxTranslateY = 0;
+              this.applyLightboxZoom(true);
+            }
+            lastTapTime = 0;
+            return;
+          }
+          lastTapTime = now;
+        }
+      }, { passive: false });
+
+      // Touch Move
+      lightbox.addEventListener('touchmove', (e) => {
+        const img = document.querySelector('#lightboxMediaContainer img');
+        if (isPinching && e.touches.length === 2 && img) {
+          e.preventDefault();
+          const currentDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          if (initialDistance > 0) {
+            const factor = currentDistance / initialDistance;
+            this.lightboxScale = Math.min(Math.max(initialScale * factor, 0.8), 5);
+            this.applyLightboxZoom(false);
+          }
+        } else if (!isPinching && e.touches.length === 1 && (this.lightboxScale || 1) > 1.05) {
+          // Pan zoomed image
+          e.preventDefault();
+          this.lightboxTranslateX = e.touches[0].clientX - dragStartX;
+          this.lightboxTranslateY = e.touches[0].clientY - dragStartY;
+          this.applyLightboxZoom(false);
+        }
+      }, { passive: false });
+
+      // Touch End
       lightbox.addEventListener('touchend', (e) => {
-        if (e.changedTouches && e.changedTouches.length === 1) {
+        if (isPinching) {
+          isPinching = false;
+          if ((this.lightboxScale || 1) < 1) {
+            this.resetLightboxZoom();
+          }
+          return;
+        }
+
+        // Single touch swipe navigation (ONLY when scale <= 1.05)
+        if (e.changedTouches && e.changedTouches.length === 1 && (!this.lightboxScale || this.lightboxScale <= 1.05)) {
           const deltaX = e.changedTouches[0].clientX - touchStartX;
           const deltaY = e.changedTouches[0].clientY - touchStartY;
           if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
@@ -2574,10 +2907,55 @@ class CloudMeApp {
           }
         }
       }, { passive: true });
+
+      // Mouse Wheel Zoom (Desktop)
+      lightbox.addEventListener('wheel', (e) => {
+        const img = document.querySelector('#lightboxMediaContainer img');
+        if (img && (e.target === img || e.target.closest('#lightboxMediaContainer'))) {
+          e.preventDefault();
+          const zoomDelta = e.deltaY < 0 ? 0.3 : -0.3;
+          this.lightboxScale = Math.min(Math.max((this.lightboxScale || 1) + zoomDelta, 1), 5);
+          if (this.lightboxScale <= 1.05) {
+            this.resetLightboxZoom();
+          } else {
+            this.applyLightboxZoom(true);
+          }
+        }
+      }, { passive: false });
+
+      // Mouse Drag Panning (Desktop)
+      let isMouseDown = false;
+      let mouseStartX = 0;
+      let mouseStartY = 0;
+      lightbox.addEventListener('mousedown', (e) => {
+        const img = document.querySelector('#lightboxMediaContainer img');
+        if (img && (this.lightboxScale || 1) > 1.05 && (e.target === img || e.target.closest('#lightboxMediaContainer'))) {
+          isMouseDown = true;
+          img.style.cursor = 'grabbing';
+          mouseStartX = e.clientX - (this.lightboxTranslateX || 0);
+          mouseStartY = e.clientY - (this.lightboxTranslateY || 0);
+          e.preventDefault();
+        }
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (isMouseDown && (this.lightboxScale || 1) > 1.05) {
+          this.lightboxTranslateX = e.clientX - mouseStartX;
+          this.lightboxTranslateY = e.clientY - mouseStartY;
+          this.applyLightboxZoom(false);
+        }
+      });
+      window.addEventListener('mouseup', () => {
+        if (isMouseDown) {
+          isMouseDown = false;
+          const img = document.querySelector('#lightboxMediaContainer img');
+          if (img) img.style.cursor = 'grab';
+        }
+      });
     }
   }
 
   closeLightbox() {
+    this.resetLightboxZoom();
     const lightbox = document.getElementById('mediaLightbox');
     if (lightbox) lightbox.style.display = 'none';
     const container = document.getElementById('lightboxMediaContainer');
@@ -2661,71 +3039,184 @@ class CloudMeApp {
     this.showToast('✅ Tautan berbagi berhasil disalin ke clipboard!', 'success');
   }
 
+  // -------------------------------------------------------------
+  // Move Folder & Files Modal (Hierarchical Navigation)
+  // -------------------------------------------------------------
   async openMoveModal(item) {
     if (!item) return;
     this.itemsToMove = [item];
-    await this.setupMoveModalUI(`Pindahkan "${item.name}"`);
+    this.moveModalTrail = [{ id: 'root', name: 'Drive Utama' }];
+    this.moveModalCurrentFolderId = 'root';
+    this.selectedTargetFolderId = 'root';
+    const titleEl = document.getElementById('moveModalTitle');
+    if (titleEl) titleEl.textContent = `Pindahkan "${item.name}"`;
+    this.openModal('moveModal');
+    await this.loadMoveModalDirectory('root');
   }
 
   async openBatchMoveModal() {
     if (this.selectedItemIds.size === 0) return;
     this.itemsToMove = Array.from(this.selectedItemIds).map(id => this.getItemById(id)).filter(Boolean);
-    await this.setupMoveModalUI(`Pindahkan ${this.itemsToMove.length} Item`);
+    this.moveModalTrail = [{ id: 'root', name: 'Drive Utama' }];
+    this.moveModalCurrentFolderId = 'root';
+    this.selectedTargetFolderId = 'root';
+    const titleEl = document.getElementById('moveModalTitle');
+    if (titleEl) titleEl.textContent = `Pindahkan ${this.itemsToMove.length} Item`;
+    this.openModal('moveModal');
+    await this.loadMoveModalDirectory('root');
   }
 
-  async setupMoveModalUI(title) {
-    const titleEl = document.getElementById('moveModalTitle');
-    if (titleEl) titleEl.textContent = title;
-    this.selectedTargetFolderId = 'root';
+  async loadMoveModalDirectory(folderId) {
+    this.moveModalCurrentFolderId = folderId;
+    this.selectedTargetFolderId = folderId;
 
+    const breadcrumbsEl = document.getElementById('moveBreadcrumbs');
     const listEl = document.getElementById('moveFolderList');
-    if (listEl) listEl.innerHTML = '<div style="text-align: center; padding: 1rem; color: var(--text-muted);">Memuat folder...</div>';
-    this.openModal('moveModal');
+    const btnMoveUp = document.getElementById('btnMoveUpLevel');
+    const confirmBtnText = document.getElementById('btnConfirmMoveText');
+
+    if (btnMoveUp) {
+      btnMoveUp.style.visibility = folderId === 'root' ? 'hidden' : 'visible';
+    }
+
+    if (breadcrumbsEl) {
+      breadcrumbsEl.innerHTML = this.moveModalTrail.map((crumb, idx) => {
+        const isLast = idx === this.moveModalTrail.length - 1;
+        return `
+          <span style="display: inline-flex; align-items: center; gap: 4px; ${isLast ? 'color: var(--accent-primary); font-weight: 600;' : 'color: var(--text-muted); cursor: pointer;'}" 
+                onclick="${isLast ? '' : `app.navigateMoveModalTo('${crumb.id}', ${idx})`}">
+            ${crumb.id === 'root' ? '<i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i>' : '<i data-lucide="folder" style="width: 14px; height: 14px;"></i>'}
+            ${this.escapeHtml(crumb.name)}
+          </span>
+          ${!isLast ? '<i data-lucide="chevron-right" style="width: 12px; height: 12px; color: var(--text-muted);"></i>' : ''}
+        `;
+      }).join('');
+    }
+
+    const currentFolderCrumb = this.moveModalTrail[this.moveModalTrail.length - 1] || { name: 'Drive Utama' };
+    if (confirmBtnText) {
+      confirmBtnText.textContent = 'Pindahkan ke Sini';
+    }
+
+    if (listEl) {
+      listEl.innerHTML = '<div style="text-align: center; padding: 1.5rem; color: var(--text-muted);"><i data-lucide="loader-2" class="spin" style="width: 20px; height: 20px; margin-bottom: 0.5rem;"></i><br>Memuat folder...</div>';
+      if (window.lucide) lucide.createIcons();
+    }
 
     try {
-      const res = await fetch('/api/files', { headers: { 'Authorization': `Bearer ${this.token}` } });
+      const url = folderId === 'root' ? '/api/files' : `/api/files?parentId=${folderId}`;
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${this.token}` } });
       const data = await res.json();
-      const allFolders = (data.files || []).filter(f => f.is_folder === 1 && f.is_trashed === 0);
+      const allItems = data.items || [];
+      const subfolders = allItems.filter(f => f.is_folder === 1 && f.is_trashed === 0);
 
       const movingIds = new Set((this.itemsToMove || []).map(i => i.id));
-      const validFolders = allFolders.filter(f => !movingIds.has(f.id));
+      const validSubfolders = subfolders.filter(f => !movingIds.has(f.id));
 
       let html = `
-        <div class="move-folder-item selected" data-folder-id="root" onclick="app.selectMoveTargetFolder('root', this)" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--bg-tertiary); cursor: pointer; border: 1.5px solid var(--accent-primary);">
-          <i data-lucide="hard-drive" style="width: 18px; height: 18px; color: var(--accent-primary);"></i>
-          <span style="font-weight: 500; flex: 1;">Drive Utama (Root)</span>
-          <i data-lucide="check" class="move-check-icon" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+        <div class="move-folder-item selected" data-folder-id="${folderId}" onclick="app.selectMoveTargetFolder('${folderId}', this, '${this.escapeHtml(currentFolderCrumb.name)}')" 
+             style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.9rem; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.15); cursor: pointer; border: 1.5px solid var(--accent-primary); transition: all var(--transition-fast);">
+          <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+            <i data-lucide="${folderId === 'root' ? 'hard-drive' : 'folder-check'}" style="width: 18px; height: 18px; color: var(--accent-primary); flex-shrink: 0;"></i>
+            <div style="min-width: 0;">
+              <span style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary);">${this.escapeHtml(currentFolderCrumb.name)}</span>
+              <span style="display: block; font-size: 0.74rem; color: var(--accent-primary);">(Lokasi saat ini)</span>
+            </div>
+          </div>
+          <i data-lucide="check-circle-2" class="move-check-icon" style="width: 18px; height: 18px; color: var(--accent-primary); flex-shrink: 0;"></i>
         </div>
       `;
 
-      validFolders.forEach(f => {
-        html += `
-          <div class="move-folder-item" data-folder-id="${f.id}" onclick="app.selectMoveTargetFolder('${f.id}', this)" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--bg-tertiary); cursor: pointer; border: 1.5px solid transparent;">
-            <i data-lucide="folder" style="width: 18px; height: 18px; color: #fbbf24;"></i>
-            <span style="font-weight: 500; flex: 1;">${this.escapeHtml(f.name)}</span>
-            <i data-lucide="check" class="move-check-icon" style="width: 16px; height: 16px; color: var(--accent-primary); display: none;"></i>
-          </div>
-        `;
-      });
+      if (validSubfolders.length > 0) {
+        html += `<div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin: 0.5rem 0 0.25rem 0.25rem; text-transform: uppercase;">Subfolder:</div>`;
+        validSubfolders.forEach(f => {
+          html += `
+            <div class="move-folder-item" data-folder-id="${f.id}" onclick="app.selectMoveTargetFolder('${f.id}', this, '${this.escapeHtml(f.name)}')"
+                 style="display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0.85rem; border-radius: var(--radius-md); background: var(--bg-tertiary); cursor: pointer; border: 1.5px solid transparent; transition: all var(--transition-fast);">
+              <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0; flex: 1;">
+                <i data-lucide="folder" style="width: 18px; height: 18px; color: #fbbf24; flex-shrink: 0;"></i>
+                <span style="font-weight: 500; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(f.name)}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;">
+                <i data-lucide="check-circle-2" class="move-check-icon" style="width: 16px; height: 16px; color: var(--accent-primary); display: none;"></i>
+                <button type="button" class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.74rem; border-radius: var(--radius-md);" 
+                        onclick="event.stopPropagation(); app.navigateMoveModalInto('${f.id}', '${this.escapeHtml(f.name)}')" title="Buka subfolder ini">
+                  <span>Masuk</span>
+                  <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+      } else {
+        html += `<div style="text-align: center; padding: 1.25rem; color: var(--text-muted); font-size: 0.82rem;">Tidak ada subfolder di dalam folder ini.</div>`;
+      }
 
-      listEl.innerHTML = html;
+      if (listEl) listEl.innerHTML = html;
       if (window.lucide) lucide.createIcons();
     } catch (e) {
       if (listEl) listEl.innerHTML = '<div style="color: var(--color-danger); text-align: center; padding: 1rem;">Gagal memuat folder.</div>';
     }
   }
 
-  selectMoveTargetFolder(folderId, el) {
+  navigateMoveModalInto(folderId, folderName) {
+    this.moveModalTrail.push({ id: folderId, name: folderName });
+    this.loadMoveModalDirectory(folderId);
+  }
+
+  navigateMoveModalTo(folderId, index) {
+    this.moveModalTrail = this.moveModalTrail.slice(0, index + 1);
+    this.loadMoveModalDirectory(folderId);
+  }
+
+  navigateMoveModalUp() {
+    if (this.moveModalTrail.length > 1) {
+      this.moveModalTrail.pop();
+      const parent = this.moveModalTrail[this.moveModalTrail.length - 1];
+      this.loadMoveModalDirectory(parent.id);
+    }
+  }
+
+  async promptNewFolderInMoveModal() {
+    const folderName = prompt('Masukkan nama folder baru:');
+    if (!folderName || !folderName.trim()) return;
+
+    try {
+      const parentId = this.moveModalCurrentFolderId === 'root' ? null : this.moveModalCurrentFolderId;
+      const res = await fetch('/api/files/folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+        body: JSON.stringify({ name: folderName.trim(), parentId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        this.showToast('📁 Folder baru berhasil dibuat!', 'success');
+        await this.loadMoveModalDirectory(this.moveModalCurrentFolderId);
+      } else {
+        this.showToast(data.error || 'Gagal membuat folder', 'error');
+      }
+    } catch (err) {
+      this.showToast('Gagal membuat folder baru', 'error');
+    }
+  }
+
+  selectMoveTargetFolder(folderId, el, folderName) {
     this.selectedTargetFolderId = folderId;
     document.querySelectorAll('.move-folder-item').forEach(item => {
       item.style.borderColor = 'transparent';
+      item.style.background = 'var(--bg-tertiary)';
       const check = item.querySelector('.move-check-icon');
       if (check) check.style.display = 'none';
     });
     if (el) {
       el.style.borderColor = 'var(--accent-primary)';
+      el.style.background = 'rgba(99, 102, 241, 0.15)';
       const check = el.querySelector('.move-check-icon');
       if (check) check.style.display = 'block';
+    }
+    const confirmBtnText = document.getElementById('btnConfirmMoveText');
+    if (confirmBtnText) {
+      confirmBtnText.textContent = 'Pindahkan ke Sini';
     }
   }
 
@@ -2752,8 +3243,182 @@ class CloudMeApp {
   }
 
   // -------------------------------------------------------------
+  // File & Folder Details / Metadata Modal
+  // -------------------------------------------------------------
+  async openDetailsModal(item) {
+    if (!item) return;
+    const contentEl = document.getElementById('fileDetailsContent');
+    if (contentEl) {
+      contentEl.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);"><i data-lucide="loader-2" class="spin" style="width: 24px; height: 24px; margin-bottom: 0.5rem;"></i><br>Mengambil detail berkas...</div>';
+      if (window.lucide) lucide.createIcons();
+    }
+    this.openModal('fileDetailsModal');
+
+    try {
+      const res = await fetch(`/api/files/${item.id}/details`, {
+        headers: { 'Authorization': `Bearer ${this.token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load details');
+      const data = await res.json();
+      const f = data.file;
+      const pathTrail = (data.pathHierarchy || []).map(p => p.name).join(' / ');
+      const isFolder = f.is_folder === 1;
+
+      let previewThumbHtml = '';
+      if (f.mime_type && f.mime_type.startsWith('image/')) {
+        previewThumbHtml = `
+          <div style="width: 100%; height: 160px; border-radius: var(--radius-lg); overflow: hidden; background: #000000; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; border: 1px solid var(--border-color);">
+            <img src="${this.apiUrl('/api/files/' + f.id + '/preview?token=' + this.token)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+          </div>
+        `;
+      }
+
+      let exifHtml = '';
+      if (data.exif) {
+        const ex = data.exif;
+        exifHtml = `
+          <div style="margin-top: 1rem; padding: 0.85rem; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="camera" style="width: 16px; height: 16px;"></i> Informasi Kamera & EXIF
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.8rem;">
+              ${ex.camera_model ? `<div><span style="color: var(--text-muted);">Kamera:</span> <strong>${this.escapeHtml((ex.camera_make ? ex.camera_make + ' ' : '') + ex.camera_model)}</strong></div>` : ''}
+              ${ex.width && ex.height ? `<div><span style="color: var(--text-muted);">Resolusi:</span> <strong>${ex.width} × ${ex.height} px</strong></div>` : ''}
+              ${ex.date_taken ? `<div><span style="color: var(--text-muted);">Diambil:</span> <strong>${new Date(ex.date_taken).toLocaleString('id-ID')}</strong></div>` : ''}
+              ${ex.iso ? `<div><span style="color: var(--text-muted);">ISO:</span> <strong>${ex.iso}</strong></div>` : ''}
+              ${ex.f_number ? `<div><span style="color: var(--text-muted);">Aperture:</span> <strong>f/${ex.f_number}</strong></div>` : ''}
+              ${ex.exposure_time ? `<div><span style="color: var(--text-muted);">Exposure:</span> <strong>${ex.exposure_time}s</strong></div>` : ''}
+              ${ex.location_name ? `<div style="grid-column: span 2;"><span style="color: var(--text-muted);">Lokasi:</span> <strong>${this.escapeHtml(ex.location_name)}</strong></div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      let folderStatsHtml = '';
+      if (isFolder && data.folderStats) {
+        const st = data.folderStats;
+        folderStatsHtml = `
+          <div style="margin-top: 1rem; padding: 0.85rem; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="folders" style="width: 16px; height: 16px;"></i> Isi Folder
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.8rem;">
+              <div><span style="color: var(--text-muted);">Subfolder:</span> <strong>${st.subfoldersCount}</strong></div>
+              <div><span style="color: var(--text-muted);">Berkas:</span> <strong>${st.subfilesCount}</strong></div>
+              <div style="grid-column: span 2;"><span style="color: var(--text-muted);">Total Ukuran:</span> <strong>${this.formatBytes(st.totalSizeBytes)}</strong></div>
+            </div>
+          </div>
+        `;
+      }
+
+      let checksumHtml = '';
+      if (!isFolder && f.checksum_sha256) {
+        checksumHtml = `
+          <tr>
+            <td style="padding: 6px 8px; color: var(--text-muted); font-size: 0.82rem; vertical-align: top; width: 110px;">SHA-256:</td>
+            <td style="padding: 6px 8px; font-size: 0.78rem; font-family: monospace; word-break: break-all;">
+              <span>${f.checksum_sha256}</span>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 2px 6px; margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;" 
+                      onclick="app.copyToClipboard('${f.checksum_sha256}', 'Checksum SHA-256 berhasil disalin!')">
+                <i data-lucide="copy" style="width: 11px; height: 11px;"></i> Salin
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+
+      let html = `
+        ${previewThumbHtml}
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+          <tbody>
+            <tr>
+              <td style="padding: 6px 8px; color: var(--text-muted); width: 110px;">Nama:</td>
+              <td style="padding: 6px 8px; font-weight: 600; word-break: break-word;">${this.escapeHtml(f.name)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; color: var(--text-muted);">Tipe:</td>
+              <td style="padding: 6px 8px;">${isFolder ? 'Folder Direktori' : this.escapeHtml(f.mime_type || 'Unknown')}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; color: var(--text-muted);">Ukuran:</td>
+              <td style="padding: 6px 8px;">${isFolder ? this.formatBytes(data.folderStats ? data.folderStats.totalSizeBytes : 0) : `${this.formatBytes(f.size_bytes)} (${(f.size_bytes || 0).toLocaleString('id-ID')} Bytes)`}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; color: var(--text-muted);">Lokasi:</td>
+              <td style="padding: 6px 8px; color: var(--accent-primary);">${this.escapeHtml(pathTrail)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; color: var(--text-muted);">Dibuat:</td>
+              <td style="padding: 6px 8px;">${new Date(f.created_at || f.updated_at).toLocaleString('id-ID')}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; color: var(--text-muted);">Diubah:</td>
+              <td style="padding: 6px 8px;">${new Date(f.updated_at).toLocaleString('id-ID')}</td>
+            </tr>
+            ${checksumHtml}
+          </tbody>
+        </table>
+        ${exifHtml}
+        ${folderStatsHtml}
+      `;
+
+      if (contentEl) contentEl.innerHTML = html;
+      if (window.lucide) lucide.createIcons();
+    } catch (err) {
+      if (contentEl) contentEl.innerHTML = '<div style="color: var(--color-danger); text-align: center; padding: 1.5rem;">Gagal memuat informasi berkas.</div>';
+    }
+  }
+
+  copyToClipboard(text, successMsg = 'Berhasil disalin!') {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    this.showToast('📋 ' + successMsg, 'success');
+  }
+
+  // -------------------------------------------------------------
   // 11. Multi-Selection & Batch Actions
   // -------------------------------------------------------------
+  attachLongPress(el, onLongPress) {
+    let pressTimer = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    el.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      pressTimer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(40);
+        onLongPress();
+      }, 450);
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+      if (!pressTimer) return;
+      const moveX = Math.abs(e.touches[0].clientX - touchStartX);
+      const moveY = Math.abs(e.touches[0].clientY - touchStartY);
+      if (moveX > 10 || moveY > 10) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchend', () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    });
+
+    el.addEventListener('touchcancel', () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    });
+  }
+
   handleItemClick(e, item) {
     if (!item) return;
     if (this.selectedItemIds.size > 0 || e.ctrlKey || e.metaKey || e.shiftKey) {
