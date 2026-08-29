@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+
+# User Data, Database, and Storage (Do not commit user data)
+data/
+storage/
+*.db
+*.db-wal
+*.db-shm
+
+# Android build artifacts & cache
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+android/.idea/
+android/*.iml
+android/.navigation/
+android/local.properties
+.gradle/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

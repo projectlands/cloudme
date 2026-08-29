@@ -1,0 +1,13 @@
+services:
+  cloudme:
+    build: .
+    container_name: cloudme-storage
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+      - JWT_SECRET=change_this_to_a_secure_random_string_in_production

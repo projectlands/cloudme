@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CloudMe - Cloud Storage & Photos Backup</title>
+  
+  <!-- PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Personal Cloud Storage & Google Photos Alternative - Fast, Lightweight, Self-Hosted">
+
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div id="app" class="app-container">
+    
+    <!-- Top Header -->
+    <header class="top-header glass">
+      <div class="brand-section">
+        <button id="btnToggleMobileSidebar" class="btn-icon mobile-menu-btn" title="Menu">
+          <i data-lucide="menu"></i>
+        </button>
+        <div class="brand-logo">
+          <i data-lucide="cloud" style="width: 22px; height: 22px;"></i>
+        </div>
+        <span class="brand-title" id="appBrandTitle">CloudMe</span>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <i data-lucide="search" style="width: 18px; height: 18px; color: var(--text-muted); flex-shrink: 0;"></i>
+          <input type="text" id="globalSearchInput" class="search-input" placeholder="Cari berkas...">
+          <select id="searchTypeFilter" class="search-filter-select desktop-only">
+            <option value="all">Semua Tipe</option>
+            <option value="image">Foto / Gambar</option>
+            <option value="video">Video</option>
+            <option value="document">Dokumen</option>
+            <option value="audio">Audio</option>
+            <option value="archive">Archive (ZIP)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <button id="btnThemeToggle" class="btn-icon" title="Ganti Tema (Dark / Light)">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        <div id="userProfileDropdownContainer" style="position: relative;">
+          <button id="btnUserMenu" class="user-avatar-btn">
+            <div class="avatar-circle" id="userAvatarInitial">U</div>
+            <span id="userDisplayName" class="desktop-only" style="font-weight: 500; font-size: 0.9rem; max-width: 100px; overflow: hidden; text-overflow: ellipsis;">User</span>
+            <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div id="userMenuDropdown" class="context-menu" style="right: 0; top: 48px; left: auto;">
+            <div class="context-menu-item" onclick="app.showMobileSyncModal()">
+              <i data-lucide="smartphone" style="width: 16px; height: 16px;"></i>
+              <span>Hubungkan HP Android</span>
+            </div>
+            <div class="context-menu-item" onclick="app.showApiKeyModal()">
+              <i data-lucide="key" style="width: 16px; height: 16px;"></i>
+              <span>API Key & Token</span>
+            </div>
+            <div class="context-menu-item" onclick="app.openServerConfigModal()">
+              <i data-lucide="server" style="width: 16px; height: 16px; color: #3b82f6;"></i>
+              <span>Alamat Server</span>
+            </div>
+            <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+            <div class="context-menu-item" style="color: var(--color-danger);" onclick="app.logout()">
+              <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+              <span>Keluar (Logout)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="app.toggleMobileSidebar(false)"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="appSidebar">
+      <!-- Mobile Close Button in Drawer -->
+      <div class="sidebar-mobile-header mobile-only">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div class="brand-logo" style="width: 32px; height: 32px;">
+            <i data-lucide="cloud" style="width: 18px; height: 18px;"></i>
+          </div>
+          <span style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);">Menu CloudMe</span>
+        </div>
+        <button class="btn-icon" onclick="app.toggleMobileSidebar(false)"><i data-lucide="x"></i></button>
+      </div>
+
+      <!-- + New Action Button with dropdown -->
+      <div style="position: relative;">
+        <button id="btnNewAction" class="btn-new-action">
+          <i data-lucide="plus" style="width: 20px; height: 20px;"></i>
+          <span>Baru</span>
+        </button>
+        <div id="newMenuDropdown" class="context-menu" style="top: 54px; left: 0; width: 100%;">
+          <div class="context-menu-item" onclick="app.openNewFolderModal()">
+            <i data-lucide="folder-plus" style="width: 18px; height: 18px; color: #fbbf24;"></i>
+            <span>Folder Baru</span>
+          </div>
+          <div class="context-menu-item" onclick="document.getElementById('fileUploadInput').click()">
+            <i data-lucide="upload" style="width: 18px; height: 18px; color: #6366f1;"></i>
+            <span>Unggah File</span>
+          </div>
+          <div class="context-menu-item" onclick="document.getElementById('folderUploadInput').click()">
+            <i data-lucide="folder-up" style="width: 18px; height: 18px; color: #10b981;"></i>
+            <span>Unggah Folder</span>
+          </div>
+          <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+          <div class="context-menu-item" onclick="app.openUrlImportModal()">
+            <i data-lucide="globe" style="width: 18px; height: 18px; color: #38bdf8;"></i>
+            <span>Impor dari Google Drive / URL</span>
+          </div>
+          <div class="context-menu-item" onclick="app.openTakeoutModal()">
+            <i data-lucide="package-check" style="width: 18px; height: 18px; color: #ec4899;"></i>
+            <span>Migrasi Google Takeout (.zip)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden file inputs -->
+      <input type="file" id="fileUploadInput" multiple style="display: none;" onchange="app.handleFilesSelected(this.files)">
+      <input type="file" id="folderUploadInput" webkitdirectory directory multiple style="display: none;" onchange="app.handleFilesSelected(this.files)">
+
+      <!-- Navigation Links -->
+      <nav class="nav-group">
+        <a href="#drive" class="nav-item active" data-nav="drive">
+          <i data-lucide="hard-drive" style="width: 18px; height: 18px;"></i>
+          <span>My Drive</span>
+        </a>
+        <a href="#photos" class="nav-item" data-nav="photos">
+          <i data-lucide="image" style="width: 18px; height: 18px;"></i>
+          <span>Foto & Video</span>
+        </a>
+        <a href="#starred" class="nav-item" data-nav="starred">
+          <i data-lucide="star" style="width: 18px; height: 18px;"></i>
+          <span>Favorit (Starred)</span>
+        </a>
+        <a href="#recent" class="nav-item" data-nav="recent">
+          <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
+          <span>Terbaru (Recent)</span>
+        </a>
+        <a href="#trash" class="nav-item" data-nav="trash">
+          <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+          <span>Sampah (Trash)</span>
+        </a>
+
+        <div class="nav-divider"></div>
+
+        <a href="#mobile-sync" class="nav-item" data-nav="mobile-sync">
+          <i data-lucide="smartphone" style="width: 18px; height: 18px; color: #10b981;"></i>
+          <span>Backup HP Android</span>
+        </a>
+        
+        <a href="#admin" class="nav-item admin-only" data-nav="admin" style="display: none;">
+          <i data-lucide="shield-check" style="width: 18px; height: 18px; color: #f59e0b;"></i>
+          <span>Admin Panel</span>
+        </a>
+
+        <a href="javascript:void(0)" class="nav-item" onclick="app.openServerConfigModal()">
+          <i data-lucide="server" style="width: 18px; height: 18px; color: #3b82f6;"></i>
+          <span>Alamat Server</span>
+        </a>
+      </nav>
+
+      <!-- Storage Quota Widget -->
+      <div class="sidebar-storage">
+        <div class="storage-header">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <i data-lucide="database" style="width: 14px; height: 14px;"></i>
+            <span>Penyimpanan</span>
+          </div>
+          <span id="storagePercentText">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="storageProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+          <span id="storageUsedText">0 GB</span>
+          <span id="storageTotalText">50 GB</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Workspace -->
+    <main class="main-content" id="mainDropZone">
+      
+      <!-- Top Content Toolbar -->
+      <div class="content-toolbar">
+        <div class="breadcrumbs" id="breadcrumbContainer">
+          <span class="breadcrumb-item active">My Drive</span>
+        </div>
+
+        <div class="toolbar-actions">
+          <!-- View Switcher -->
+          <div style="display: flex; background: var(--bg-tertiary); padding: 2px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <button id="btnViewGrid" class="btn-icon" style="width: 32px; height: 32px; border: none; background: var(--bg-secondary);" title="Grid View">
+              <i data-lucide="grid" style="width: 16px; height: 16px;"></i>
+            </button>
+            <button id="btnViewList" class="btn-icon" style="width: 32px; height: 32px; border: none; background: transparent;" title="List View">
+              <i data-lucide="list" style="width: 16px; height: 16px;"></i>
+            </button>
+          </div>
+
+          <!-- Sort Selector -->
+          <select id="sortBySelector" class="search-filter-select" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.45rem 0.8rem;">
+            <option value="name_asc">Nama (A - Z)</option>
+            <option value="name_desc">Nama (Z - A)</option>
+            <option value="date_desc">Terbaru Diubah</option>
+            <option value="size_desc">Ukuran Terbesar</option>
+          </select>
+
+          <!-- Select All Toggle in Toolbar -->
+          <button id="btnToolbarSelectAll" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.82rem;" onclick="app.toggleSelectAll(app.selectedItemIds.size < app.itemsCache.length)">
+            <i data-lucide="check-square" style="width: 14px; height: 14px;"></i>
+            <span id="btnToolbarSelectAllText">Pilih Semua</span>
+          </button>
+
+          <!-- Empty Trash Button (Visible only in Trash view) -->
+          <button id="btnEmptyTrash" class="btn btn-danger" style="display: none; padding: 0.4rem 0.75rem; font-size: 0.82rem;" onclick="app.emptyTrash()">
+            <i data-lucide="trash" style="width: 14px; height: 14px;"></i>
+            <span>Kosongkan Sampah</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Batch Actions Bar (Visible when items are selected) -->
+      <div id="batchActionBar" class="batch-action-bar" style="display: none;">
+        <div class="batch-action-left">
+          <div class="batch-count-badge">
+            <i data-lucide="check-circle" style="width: 15px; height: 15px;"></i>
+            <span id="batchSelectedCount">0 item dipilih</span>
+          </div>
+          <button class="btn btn-secondary batch-cancel-btn" onclick="app.clearSelection()" title="Batalkan pilihan">
+            <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+            <span>Batal</span>
+          </button>
+        </div>
+        <div class="batch-action-buttons">
+          <button class="btn btn-secondary" onclick="app.openBatchShareModal()" title="Bagikan berkas terpilih (Multi-file link)">
+            <i data-lucide="share-2" style="width: 15px; height: 15px;"></i>
+            <span>Bagikan</span>
+          </button>
+          <button class="btn btn-secondary" id="btnBatchRename" onclick="app.batchRename()" style="display: none;" title="Ganti nama item terpilih">
+            <i data-lucide="edit-3" style="width: 15px; height: 15px;"></i>
+            <span>Ganti Nama</span>
+          </button>
+          <button class="btn btn-secondary" onclick="app.batchDownloadZip()" title="Unduh item terpilih sebagai ZIP">
+            <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+            <span>Unduh ZIP</span>
+          </button>
+          <button class="btn btn-secondary" onclick="app.openBatchMoveModal()" title="Pindahkan item terpilih">
+            <i data-lucide="folder-input" style="width: 15px; height: 15px;"></i>
+            <span>Pindahkan</span>
+          </button>
+          <button class="btn btn-danger" onclick="app.batchDelete()" title="Hapus item terpilih">
+            <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+            <span>Hapus</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Dynamic Content Views Container -->
+      <div id="contentViewContainer">
+        <!-- Folders Section -->
+        <div id="foldersSection">
+          <div class="section-title">Folder</div>
+          <div id="folderGrid" class="folder-grid"></div>
+        </div>
+
+        <!-- Files Section (Grid View) -->
+        <div id="filesSectionGrid">
+          <div class="section-title">Berkas / Files</div>
+          <div id="fileGrid" class="file-grid"></div>
+        </div>
+
+        <!-- Files Section (List View) -->
+        <div id="filesSectionList" style="display: none;">
+          <div class="section-title">Berkas & Folder</div>
+          <div class="file-table-container">
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox" onchange="app.toggleSelectAll(this.checked)"></th>
+                  <th>Nama</th>
+                  <th>Ukuran</th>
+                  <th>Tipe</th>
+                  <th>Terakhir Diubah</th>
+                  <th style="text-align: right;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="fileTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Google Photos Timeline View -->
+        <div id="photosTimelineView" style="display: none;"></div>
+
+        <!-- Android Backup Hub View -->
+        <div id="mobileBackupView" style="display: none;"></div>
+
+        <!-- Admin Panel View -->
+        <div id="adminPanelView" style="display: none;"></div>
+
+        <!-- Public Share Viewer View (Guest / Public Recipient) -->
+        <div id="publicShareView" style="display: none;"></div>
+
+        <!-- Empty State Container -->
+        <div id="emptyStateContainer" style="display: none; text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
+          <i data-lucide="folder-open" style="width: 64px; height: 64px; margin-bottom: 1rem; stroke-width: 1.5;"></i>
+          <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Tidak ada file di sini</h3>
+          <p style="font-size: 0.9rem;">Tarik dan letakkan file ke sini atau klik tombol <strong>"+ Baru"</strong> untuk mengunggah.</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mobile Floating Action Button (FAB +) -->
+    <button id="mobileFab" class="mobile-fab mobile-only" onclick="app.openMobileActionSheet()" title="Tambah Baru">
+      <i data-lucide="plus" style="width: 24px; height: 24px;"></i>
+    </button>
+
+    <!-- Mobile Bottom Navigation Bar (Google Drive / Photos App Style) -->
+    <nav class="mobile-bottom-nav mobile-only glass">
+      <a href="#drive" class="bottom-nav-item active" data-bottom-nav="drive">
+        <i data-lucide="hard-drive"></i>
+        <span>Drive</span>
+      </a>
+      <a href="#photos" class="bottom-nav-item" data-bottom-nav="photos">
+        <i data-lucide="image"></i>
+        <span>Foto</span>
+      </a>
+      <a href="#starred" class="bottom-nav-item" data-bottom-nav="starred">
+        <i data-lucide="star"></i>
+        <span>Favorit</span>
+      </a>
+      <a href="#mobile-sync" class="bottom-nav-item" data-bottom-nav="mobile-sync">
+        <i data-lucide="smartphone"></i>
+        <span>Backup</span>
+      </a>
+      <button class="bottom-nav-item" onclick="app.toggleMobileSidebar(true)" style="background: transparent; border: none;">
+        <i data-lucide="menu"></i>
+        <span>Lainnya</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Right Click Context Menu -->
+  <div id="contextMenu" class="context-menu">
+    <div class="context-menu-item" id="ctxPreview" onclick="app.ctxAction('preview')">
+      <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+      <span>Lihat (Preview)</span>
+    </div>
+    <div class="context-menu-item" id="ctxDownload" onclick="app.ctxAction('download')">
+      <i data-lucide="download" style="width: 16px; height: 16px;"></i>
+      <span>Unduh File</span>
+    </div>
+    <div class="context-menu-item" id="ctxShare" onclick="app.ctxAction('share')">
+      <i data-lucide="share-2" style="width: 16px; height: 16px;"></i>
+      <span>Bagikan Link & QR</span>
+    </div>
+    <div class="context-menu-item" id="ctxStar" onclick="app.ctxAction('star')">
+      <i data-lucide="star" style="width: 16px; height: 16px;"></i>
+      <span id="ctxStarText">Tambah ke Favorit</span>
+    </div>
+    <div class="context-menu-item" id="ctxRename" onclick="app.ctxAction('rename')">
+      <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
+      <span>Ganti Nama</span>
+    </div>
+    <div class="context-menu-item" id="ctxMove" onclick="app.ctxAction('move')">
+      <i data-lucide="folder-input" style="width: 16px; height: 16px;"></i>
+      <span>Pindahkan ke...</span>
+    </div>
+    <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+    <div class="context-menu-item" style="color: var(--color-danger);" id="ctxDelete" onclick="app.ctxAction('delete')">
+      <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+      <span>Hapus</span>
+    </div>
+  </div>
+
+  <!-- Floating Upload Tray (Bottom Right) -->
+  <div id="uploadTray" class="upload-tray">
+    <div class="upload-tray-header">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <i data-lucide="upload-cloud" style="width: 18px; height: 18px; color: var(--accent-primary);"></i>
+        <span id="uploadTrayTitle">Mengunggah berkas...</span>
+      </div>
+      <div style="display: flex; gap: 0.4rem;">
+        <button class="btn-icon" style="width: 24px; height: 24px; border: none;" onclick="app.toggleUploadTrayMinimize()">
+          <i data-lucide="minus" style="width: 14px; height: 14px;"></i>
+        </button>
+        <button class="btn-icon" style="width: 24px; height: 24px; border: none;" onclick="app.closeUploadTray()">
+          <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+        </button>
+      </div>
+    </div>
+    <div id="uploadTrayBody" class="upload-tray-body"></div>
+  </div>
+
+  <!-- Media Lightbox Modal -->
+  <div id="mediaLightbox" class="lightbox-modal">
+    <div class="lightbox-header">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <i data-lucide="file" id="lightboxFileIcon" style="width: 20px; height: 20px;"></i>
+        <span id="lightboxFileName" style="font-weight: 500; font-size: 1rem;">File Preview</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <button class="btn-icon" id="btnLightboxRename" title="Ganti Nama" onclick="app.renameActiveLightboxFile()">
+          <i data-lucide="edit-3"></i>
+        </button>
+        <button class="btn-icon" id="btnLightboxDownload" title="Unduh File" onclick="app.downloadActiveLightboxFile()">
+          <i data-lucide="download"></i>
+        </button>
+        <button class="btn-icon" id="btnLightboxShare" title="Bagikan" onclick="app.shareActiveLightboxFile()">
+          <i data-lucide="share-2"></i>
+        </button>
+        <button class="btn-icon" onclick="app.closeLightbox()" title="Tutup">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+    </div>
+    <div class="lightbox-body" id="lightboxMediaContainer"></div>
+  </div>
+
+  <!-- Setup Wizard Modal (Fresh Install) -->
+  <div id="setupWizardModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 580px;">
+      <div style="text-align: center; margin-bottom: 1.75rem;">
+        <div class="brand-logo" style="margin: 0 auto 1rem auto; width: 52px; height: 52px;">
+          <i data-lucide="cloud" style="width: 30px; height: 30px;"></i>
+        </div>
+        <h2 style="font-size: 1.5rem;">Selamat Datang di CloudMe</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.35rem;">
+          Inisialisasi Cloud Storage & Auto-Backup mandiri Anda dalam hitungan detik.
+        </p>
+      </div>
+
+      <form id="setupWizardForm" onsubmit="app.handleSetupSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Nama Aplikasi Cloud</label>
+          <input type="text" id="setupAppName" class="form-input" value="CloudMe" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label">Username Admin</label>
+            <input type="text" id="setupAdminUser" class="form-input" placeholder="admin" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Admin</label>
+            <input type="email" id="setupAdminEmail" class="form-input" placeholder="admin@domain.local" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password Admin</label>
+          <input type="password" id="setupAdminPass" class="form-input" placeholder="Minimal 6 karakter" required minlength="6">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Folder Penyimpanan Data (Otomatis)</label>
+          <input type="text" id="setupStoragePath" class="form-input" placeholder="Default: ./data/storage">
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Folder fisik tempat seluruh berkas, video, dan foto disimpan.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Kuota Default Per User (GB)</label>
+          <input type="number" id="setupDefaultQuota" class="form-input" value="50" min="1">
+        </div>
+
+        <button type="submit" id="btnSubmitSetup" class="btn btn-primary" style="width: 100%; padding: 0.8rem; margin-top: 1rem;">
+          <i data-lucide="check-circle" style="width: 18px; height: 18px;"></i>
+          <span>Selesaikan Instalasi & Masuk</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Login & Register Modal -->
+  <div id="authModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 440px;">
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div class="brand-logo" style="margin: 0 auto 0.75rem auto; width: 44px; height: 44px;">
+          <i data-lucide="cloud" style="width: 24px; height: 24px;"></i>
+        </div>
+        <h2 id="authModalTitle" style="font-size: 1.35rem;">Masuk ke CloudMe</h2>
+        <p id="authModalSubtitle" style="color: var(--text-muted); font-size: 0.85rem;">Akses penyimpanan awan pribadi Anda</p>
+      </div>
+
+      <!-- Current Server Target Indicator -->
+      <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-tertiary); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; font-size: 0.78rem; border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden;">
+          <i data-lucide="server" style="width: 14px; height: 14px; color: var(--accent-primary); flex-shrink: 0;"></i>
+          <span id="authServerDisplay" style="color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Server: Menghubungkan...</span>
+        </div>
+        <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.72rem; flex-shrink: 0;" onclick="app.openServerConfigModal()">
+          Ganti
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" onsubmit="app.handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Username atau Email</label>
+          <input type="text" id="loginUsername" class="form-input" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="loginPassword" class="form-input" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">
+          <span>Masuk</span>
+        </button>
+        <p style="text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-top: 1.25rem;">
+          Belum punya akun? <a href="javascript:void(0)" onclick="app.toggleAuthMode('register')">Daftar di sini</a>
+        </p>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" style="display: none;" onsubmit="app.handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" id="regUsername" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="regEmail" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="regPassword" class="form-input" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">
+          <span>Buat Akun Baru</span>
+        </button>
+        <p style="text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-top: 1.25rem;">
+          Sudah punya akun? <a href="javascript:void(0)" onclick="app.toggleAuthMode('login')">Masuk di sini</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Share Modal Dialog -->
+  <div id="shareModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <h3 style="font-size: 1.2rem;">Bagikan Berkas</h3>
+        <button class="btn-icon" onclick="app.closeModal('shareModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tautan Publik (Share Link)</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="shareUrlInput" class="form-input" readonly>
+          <button class="btn btn-primary" onclick="app.copyShareUrl()">
+            <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
+            <span>Salin</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- QR Code Preview for Android mobile scan -->
+      <div style="text-align: center; margin: 1.25rem 0; padding: 1rem; background: var(--bg-tertiary); border-radius: var(--radius-lg);">
+        <img id="shareQrCodeImg" src="" alt="Scan QR Code" style="width: 160px; height: 160px; border-radius: var(--radius-md); background: #ffffff; padding: 6px;">
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+          📱 Scan dengan kamera HP Android untuk membuka & mengunduh langsung.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Password Tautan (Opsional)</label>
+          <input type="text" id="sharePasswordInput" class="form-input" placeholder="Bebas password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Masa Berlaku</label>
+          <select id="shareExpirySelect" class="form-input">
+            <option value="">Selamanya</option>
+            <option value="1">1 Hari</option>
+            <option value="7">7 Hari</option>
+            <option value="30">30 Hari</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="app.generateNewShareLink()">
+        <span>Perbarui Pengaturan Tautan</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- API Key & Token Modal -->
+  <div id="apiKeyModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 520px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div class="brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;">
+            <i data-lucide="key" style="width: 18px; height: 18px;"></i>
+          </div>
+          <h3 style="font-size: 1.2rem;">API Key & Token Akses</h3>
+        </div>
+        <button class="btn-icon" onclick="app.closeModal('apiKeyModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <!-- Warning Alert Banner -->
+      <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; gap: 0.75rem; align-items: flex-start;">
+        <i data-lucide="alert-triangle" style="width: 22px; height: 22px; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
+        <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45;">
+          <strong style="color: #f59e0b; display: block; margin-bottom: 2px;">Perhatian Penting:</strong>
+          API Key digunakan untuk menghubungkan <strong>HP Android (Auto-Backup)</strong> dan skrip otomatis. 
+          Menekan tombol <strong>Regenerate</strong> akan <span style="color: var(--color-danger); font-weight: 600;">memutus semua perangkat yang sedang terhubung</span> sampai Anda memperbarui API Key di perangkat tersebut.
+        </div>
+      </div>
+
+      <!-- API Key Section -->
+      <div class="form-group">
+        <label class="form-label" style="display: flex; justify-content: space-between;">
+          <span>API Key Pribadi (Permanen)</span>
+          <span style="color: var(--color-success); font-size: 0.75rem;">Aktif</span>
+        </label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="modalApiKeyInput" class="form-input" readonly style="font-family: monospace; font-size: 0.85rem; color: var(--accent-primary);">
+          <button class="btn btn-primary" onclick="app.copyApiKey()">
+            <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
+            <span>Salin</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Regenerate Action with Confirmation -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 0.5rem; margin-bottom: 1.5rem;">
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Ingin reset kunci rahasia?</span>
+        <button class="btn btn-danger" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;" onclick="app.confirmRegenerateApiKey()">
+          <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+          <span>Regenerate API Key</span>
+        </button>
+      </div>
+
+      <!-- JWT Session Token Section -->
+      <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+        <label class="form-label" style="display: flex; justify-content: space-between;">
+          <span>JWT Session Token (Sesi Web Saat Ini)</span>
+          <span style="color: var(--text-muted); font-size: 0.75rem;">Expires 30 Hari</span>
+        </label>
+        <textarea id="modalJwtTokenInput" class="form-input" readonly rows="2" style="font-family: monospace; font-size: 0.75rem; resize: none;"></textarea>
+        <button class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; font-size: 0.85rem; padding: 0.45rem;" onclick="app.copyJwtToken()">
+          <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+          <span>Salin JWT Token</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Action Bottom Sheet Modal (Triggered by FAB +) -->
+  <div id="mobileActionSheetModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 440px; padding: 1.5rem 1.25rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 600;">Tambah / Buat Baru</h3>
+        <button class="btn-icon" onclick="app.closeModal('mobileActionSheetModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+        <div class="context-menu-item" style="padding: 0.85rem 1rem; background: var(--bg-tertiary);" onclick="app.closeModal('mobileActionSheetModal'); app.openNewFolderModal();">
+          <i data-lucide="folder-plus" style="width: 20px; height: 20px; color: #fbbf24;"></i>
+          <span style="font-weight: 500; font-size: 0.95rem;">Buat Folder Baru</span>
+        </div>
+        <div class="context-menu-item" style="padding: 0.85rem 1rem; background: var(--bg-tertiary);" onclick="app.closeModal('mobileActionSheetModal'); document.getElementById('fileUploadInput').click();">
+          <i data-lucide="file-up" style="width: 20px; height: 20px; color: #6366f1;"></i>
+          <span style="font-weight: 500; font-size: 0.95rem;">Unggah Berkas / Dokumen</span>
+        </div>
+        <div class="context-menu-item" style="padding: 0.85rem 1rem; background: var(--bg-tertiary);" onclick="app.closeModal('mobileActionSheetModal'); document.getElementById('mobilePhotoUploadInput').click();">
+          <i data-lucide="image" style="width: 20px; height: 20px; color: #10b981;"></i>
+          <span style="font-weight: 500; font-size: 0.95rem;">Unggah Foto & Video (Galeri / Kamera)</span>
+        </div>
+        <div class="context-menu-item" style="padding: 0.85rem 1rem; background: var(--bg-tertiary);" onclick="app.closeModal('mobileActionSheetModal'); app.openUrlImportModal();">
+          <i data-lucide="globe" style="width: 20px; height: 20px; color: #38bdf8;"></i>
+          <span style="font-weight: 500; font-size: 0.95rem;">Impor dari Google Drive / Link URL</span>
+        </div>
+        <div class="context-menu-item" style="padding: 0.85rem 1rem; background: var(--bg-tertiary);" onclick="app.closeModal('mobileActionSheetModal'); app.openTakeoutModal();">
+          <i data-lucide="package-check" style="width: 20px; height: 20px; color: #ec4899;"></i>
+          <span style="font-weight: 500; font-size: 0.95rem;">Migrasi Google Takeout (.zip)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Photo & Video specific input for mobile -->
+  <input type="file" id="mobilePhotoUploadInput" accept="image/*,video/*" multiple style="display: none;" onchange="app.handleFilesSelected(this.files)">
+
+  <!-- Google Takeout Migration Modal -->
+  <div id="takeoutModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 540px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div class="brand-logo" style="width: 32px; height: 32px; background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);">
+            <i data-lucide="package-check" style="width: 18px; height: 18px;"></i>
+          </div>
+          <h3 style="font-size: 1.2rem;">Migrasi Google Takeout</h3>
+        </div>
+        <button class="btn-icon" onclick="app.closeModal('takeoutModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45;">
+        <strong style="color: #ec4899; display: block; margin-bottom: 2px;">📦 Ekstraksi Otomatis Google Photos:</strong>
+        Unggah file arsip <code>takeout-*.zip</code> dari Google Takeout, atau tempelkan link download-nya. Sistem akan mengekstrak semua foto/video, mencocokkan metadata tanggal aslinya, dan memasukkannya ke timeline Foto & Video Anda.
+      </div>
+
+      <form id="takeoutForm" onsubmit="app.handleTakeoutSubmit(event)">
+        <!-- Option A: Upload ZIP File -->
+        <div class="form-group">
+          <label class="form-label">Opsi 1: Pilih File ZIP Google Takeout dari Komputer</label>
+          <input type="file" id="takeoutZipFileInput" accept=".zip" class="form-input">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 1rem; margin: 1rem 0;">
+          <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+          <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Atau</span>
+          <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+        </div>
+
+        <!-- Option B: Direct URL / Google Drive link -->
+        <div class="form-group">
+          <label class="form-label">Opsi 2: Link Download ZIP Google Takeout / Google Drive</label>
+          <input type="url" id="takeoutUrlInput" class="form-input" placeholder="https://drive.google.com/file/d/... atau link download zip">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="app.closeModal('takeoutModal')">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitTakeout" style="background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);">
+            <i data-lucide="package-check" style="width: 16px; height: 16px;"></i>
+            <span>Mulai Ekstraksi & Migrasi</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- URL & Google Drive Import Modal -->
+  <div id="urlImportModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 500px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div class="brand-logo" style="width: 32px; height: 32px; background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);">
+            <i data-lucide="download-cloud" style="width: 18px; height: 18px;"></i>
+          </div>
+          <h3 style="font-size: 1.2rem;">Impor dari Google Drive / URL</h3>
+        </div>
+        <button class="btn-icon" onclick="app.closeModal('urlImportModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45;">
+        <strong style="color: #38bdf8; display: block; margin-bottom: 2px;">💡 Migrasi Mudah:</strong>
+        Tempel link share publik dari Google Drive (misal: <code>https://drive.google.com/file/d/.../view</code>) atau link download file langsung dari internet. Sistem akan mengunduh dan menyimpannya langsung ke CloudMe Anda.
+      </div>
+
+      <form id="urlImportForm" onsubmit="app.handleUrlImportSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Link Google Drive / URL Publik Berkas *</label>
+          <input type="url" id="importUrlInput" class="form-input" placeholder="https://drive.google.com/file/d/... atau https://..." required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nama File Baru (Opsional)</label>
+          <input type="text" id="importCustomNameInput" class="form-input" placeholder="Otomatis dideteksi jika dikosongkan">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="app.closeModal('urlImportModal')">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitUrlImport">
+            <i data-lucide="download-cloud" style="width: 16px; height: 16px;"></i>
+            <span>Mulai Impor ke Cloud</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Add User Modal -->
+  <div id="adminAddUserModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 480px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(99, 102, 241, 0.15); color: var(--accent-primary); display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i>
+          </div>
+          <h3 style="font-size: 1.2rem; font-weight: 700;">Tambah Pengguna Baru</h3>
+        </div>
+        <button type="button" class="btn-icon" onclick="app.closeModal('adminAddUserModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <form id="adminAddUserForm" onsubmit="app.submitAddUser(event)">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Username</label>
+          <input type="text" id="adminAddUsername" class="form-input" placeholder="Contoh: budi123" required autocomplete="off">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Email</label>
+          <input type="email" id="adminAddEmail" class="form-input" placeholder="budi@example.com" required autocomplete="off">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Password</label>
+          <input type="password" id="adminAddPassword" class="form-input" placeholder="Minimal 4 karakter..." required autocomplete="new-password">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Peran (Role)</label>
+            <select id="adminAddRole" class="form-input" style="cursor: pointer;">
+              <option value="user" selected>User Biasa</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Kuota (GB)</label>
+            <input type="number" id="adminAddQuota" class="form-input" min="1" max="100000" value="50" required>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="app.closeModal('adminAddUserModal')">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitAddUser">
+            <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
+            <span>Simpan Pengguna</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Edit User Modal -->
+  <div id="adminEditUserModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 480px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="user-cog" style="width: 18px; height: 18px;"></i>
+          </div>
+          <h3 style="font-size: 1.2rem; font-weight: 700;">Edit Data Pengguna</h3>
+        </div>
+        <button type="button" class="btn-icon" onclick="app.closeModal('adminEditUserModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <form id="adminEditUserForm" onsubmit="app.submitEditUser(event)">
+        <input type="hidden" id="adminEditUserId">
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Username</label>
+          <input type="text" id="adminEditUsername" class="form-input" required autocomplete="off">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Email</label>
+          <input type="email" id="adminEditEmail" class="form-input" required autocomplete="off">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Ganti Password (Opsional)</label>
+          <input type="password" id="adminEditPassword" class="form-input" placeholder="Kosongkan jika tidak ingin mengubah..." autocomplete="new-password">
+          <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block;">Biarkan kosong jika tetap memakai password saat ini.</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Peran (Role)</label>
+            <select id="adminEditRole" class="form-input" style="cursor: pointer;">
+              <option value="user">User Biasa</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Kuota (GB)</label>
+            <input type="number" id="adminEditQuota" class="form-input" min="1" max="100000" required>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="app.closeModal('adminEditUserModal')">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitEditUser">
+            <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+            <span>Simpan Perubahan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Edit User Quota Modal -->
+  <div id="quotaEditModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 440px;">
+      <h3 style="font-size: 1.15rem; margin-bottom: 0.35rem;">Ubah Kuota Penyimpanan</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;" id="quotaEditUserLabel">Pengguna: admin</p>
+      
+      <!-- Real Physical Server Disk Space Indicator -->
+      <div id="quotaEditDiskInfo" style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem; background: var(--bg-tertiary); padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.5rem;">
+        <i data-lucide="hard-drive" style="width: 16px; height: 16px; color: var(--accent-primary); flex-shrink: 0;"></i>
+        <span id="quotaEditDiskInfoText">Memeriksa ruang hard disk server...</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Kapasitas Baru (Gigabytes / GB)</label>
+        <input type="number" id="quotaEditInput" class="form-input" min="1" max="100000" placeholder="Contoh: 100" oninput="app.checkQuotaOverprovision()">
+      </div>
+
+      <!-- Warning if quota input > physical disk -->
+      <div id="quotaOverprovisionWarning" style="display: none; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: var(--radius-md); padding: 0.65rem 0.85rem; font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.65rem; line-height: 1.45;">
+        <strong style="color: #f59e0b; display: block; margin-bottom: 2px;">⚠️ Peringatan Kuota Melebihi Hard Disk:</strong>
+        <span id="quotaOverprovisionWarningText"></span>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem;">
+        <button class="btn btn-secondary" onclick="app.closeModal('quotaEditModal')">Batal</button>
+        <button class="btn btn-primary" id="btnSaveQuota" onclick="app.saveUserQuota()">Simpan Kuota</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Folder / Rename Modal -->
+  <div id="inputDialogModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 420px;">
+      <h3 id="inputDialogTitle" style="font-size: 1.15rem; margin-bottom: 1rem;">Folder Baru</h3>
+      <input type="text" id="inputDialogValue" class="form-input" style="margin-bottom: 1.25rem;">
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="app.closeModal('inputDialogModal')">Batal</button>
+        <button class="btn btn-primary" id="btnInputDialogConfirm">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Visual Alert & Confirmation Modal -->
+  <div id="customDialogModal" class="modal-backdrop" style="z-index: 1200;">
+    <div class="modal-card" style="max-width: 440px; text-align: center; padding: 2.25rem 1.75rem 1.75rem 1.75rem; border-radius: 20px; box-shadow: var(--shadow-2xl); border: 1px solid var(--border-color); animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+      <div id="dialogIconBadge" style="width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 1.25rem auto; display: flex; align-items: center; justify-content: center; background: rgba(99, 102, 241, 0.15); color: var(--accent-primary); box-shadow: 0 0 25px rgba(99, 102, 241, 0.25);">
+        <i data-lucide="info" id="dialogIcon" style="width: 32px; height: 32px;"></i>
+      </div>
+      <h3 id="dialogTitle" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.65rem; color: var(--text-primary);">Pemberitahuan</h3>
+      <p id="dialogMessage" style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.75rem; word-break: break-word;">Pesan dialog</p>
+      <div style="display: flex; gap: 0.75rem; justify-content: center;" id="dialogButtonContainer">
+        <button type="button" id="btnDialogCancel" class="btn btn-secondary" style="flex: 1; padding: 0.65rem 1rem; font-weight: 600;">Batal</button>
+        <button type="button" id="btnDialogConfirm" class="btn btn-primary" style="flex: 1; padding: 0.65rem 1rem; font-weight: 600;">Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Konfigurasi Alamat Server (Dynamic Server URL for APK & Mobile) -->
+  <div id="serverConfigModal" class="modal-backdrop" style="z-index: 1250;">
+    <div class="modal-card" style="max-width: 480px; border-radius: var(--radius-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-2xl);">
+      <div class="modal-header" style="padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+          <div class="brand-logo" style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6, #6366f1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="server" style="width: 18px; height: 18px; color: #fff;"></i>
+          </div>
+          <div>
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;">Alamat Server CloudMe</h3>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Hubungkan aplikasi Android ke server Anda</span>
+          </div>
+        </div>
+        <button type="button" class="btn-icon" onclick="app.closeModal('serverConfigModal')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="modal-body" style="padding: 1.25rem 0 0.5rem 0;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">
+          Aplikasi di HP Anda akan menggunakan alamat ini untuk sinkronisasi galeri foto dan mengunggah berkas.
+        </p>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 600;">URL Server CloudMe:</label>
+          <div style="position: relative;">
+            <input type="url" id="inputCustomServerUrl" class="form-input" placeholder="https://... atau http://192.168.x.x:8080" style="padding-left: 2.25rem;">
+            <i data-lucide="globe" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none;"></i>
+          </div>
+        </div>
+
+        <!-- Preset Buttons -->
+        <div style="margin-bottom: 1.25rem;">
+          <span style="font-size: 0.74rem; color: var(--text-muted); display: block; margin-bottom: 0.4rem; font-weight: 500;">Pilihan Cepat:</span>
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary" style="font-size: 0.74rem; padding: 4px 10px; border-radius: var(--radius-full);" onclick="app.setServerUrlPreset('tunnel')">
+              🌐 Cloudflare Tunnel
+            </button>
+            <button type="button" class="btn btn-secondary" style="font-size: 0.74rem; padding: 4px 10px; border-radius: var(--radius-full);" onclick="app.setServerUrlPreset('local')">
+              🏠 Wi-Fi Lokal (192.168.18.89)
+            </button>
+            <button type="button" class="btn btn-secondary" style="font-size: 0.74rem; padding: 4px 10px; border-radius: var(--radius-full);" onclick="app.setServerUrlPreset('origin')">
+              🔄 Default Host
+            </button>
+          </div>
+        </div>
+
+        <!-- Connection Test Status Box -->
+        <div id="serverTestStatusBox" style="display: none; padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.82rem; margin-bottom: 1rem;"></div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; gap: 0.6rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <button type="button" class="btn btn-secondary" onclick="app.testServerConnection()">
+          <i data-lucide="activity" style="width: 15px; height: 15px;"></i>
+          <span>Tes Koneksi</span>
+        </button>
+        <button type="button" class="btn btn-primary" onclick="app.saveServerUrl()">
+          <i data-lucide="check" style="width: 15px; height: 15px;"></i>
+          <span>Simpan & Terapkan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

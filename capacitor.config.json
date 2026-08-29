@@ -1,0 +1,9 @@
+{
+  "appId": "com.cloudme.app",
+  "appName": "CloudMe",
+  "webDir": "public",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "https"
+  }
+}
