@@ -21,21 +21,22 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          packages: 'platforms;android-35 build-tools;35.0.0'
+          node-version: 20
+          cache: 'npm'
 
-      - name: Accept Android SDK Licenses
-        run: yes | sdkmanager --licenses || true
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Install Node.js Dependencies & Sync Capacitor
+      - name: Build Web Assets & Sync Capacitor
+        run: npx cap sync android
+
+      - name: Set gradlew permissions & fix line endings
         run: |
-          npm install
-          npx cap sync android
-
-      - name: Make Gradlew Executable
-        run: chmod +x android/gradlew
+          sed -i 's/\r$//' android/gradlew
+          chmod +x android/gradlew
 
       - name: Build Android Debug APK
         run: |

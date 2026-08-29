@@ -1,0 +1,4 @@
+# Force LF line endings for shell scripts and Gradle wrappers
+android/gradlew text eol=lf
+*.sh text eol=lf
+run.sh text eol=lf
