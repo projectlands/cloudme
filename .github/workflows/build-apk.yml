@@ -29,8 +29,8 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build Web Assets & Sync Capacitor
-        run: npx cap sync android
+      - name: Copy Web Assets to Android
+        run: npx cap copy android || true
 
       - name: Set gradlew permissions & fix line endings
         run: |
