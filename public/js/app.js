@@ -51,6 +51,8 @@ class CloudMeApp {
     this.setupTheme();
     this.setupEventListeners();
     this.updateServerUrlDisplay();
+    this.setupPullToRefresh();
+    this.setupNativeBackupListener();
     await this.checkSystemStatus();
     if (window.lucide) lucide.createIcons();
   }
@@ -1210,6 +1212,106 @@ class CloudMeApp {
     this.checkNativeBackupStatus();
   }
 
+  setupNativeBackupListener() {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AutoBackup) {
+      window.Capacitor.Plugins.AutoBackup.addListener('syncProgress', (data) => {
+        const statusText = document.getElementById('nativeBackupStatusText');
+        if (statusText && data && data.status) {
+          statusText.innerHTML = `<span style="color: var(--accent-primary); font-weight: 600;">🔄 ${this.escapeHtml(data.status)}</span>`;
+        }
+        if (data && data.current > 0 && data.current === data.total) {
+          setTimeout(() => {
+            this.checkNativeBackupStatus();
+            if (this.currentNav === 'photos') this.loadPhotosTimeline();
+          }, 1500);
+        }
+      });
+    }
+  }
+
+  setupPullToRefresh() {
+    let startY = 0;
+    let currentY = 0;
+    let isPulling = false;
+    let isRefreshing = false;
+    const threshold = 70;
+
+    const indicator = document.getElementById('pullToRefreshIndicator');
+    const icon = document.getElementById('ptrIcon');
+    const text = document.getElementById('ptrText');
+    if (!indicator) return;
+
+    window.addEventListener('touchstart', (e) => {
+      const scrollEl = document.scrollingElement || document.documentElement || document.body;
+      const scrollTop = Math.max(scrollEl.scrollTop, window.scrollY, window.pageYOffset || 0);
+
+      if (scrollTop <= 2 && !isRefreshing) {
+        startY = e.touches[0].clientY;
+        isPulling = true;
+      } else {
+        isPulling = false;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isPulling || isRefreshing) return;
+      currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+
+      if (deltaY > 10) {
+        const pullDistance = Math.min(deltaY * 0.45, 90);
+        indicator.style.opacity = Math.min(pullDistance / threshold, 1);
+        indicator.style.transform = `translateY(${pullDistance}px)`;
+
+        if (pullDistance >= threshold * 0.7) {
+          if (text) text.textContent = 'Lepaskan untuk memuat ulang';
+          if (icon) icon.style.transform = 'rotate(180deg)';
+        } else {
+          if (text) text.textContent = 'Tarik untuk memuat ulang';
+          if (icon) icon.style.transform = 'rotate(0deg)';
+        }
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', async () => {
+      if (!isPulling || isRefreshing) return;
+      isPulling = false;
+      const deltaY = currentY - startY;
+      const pullDistance = Math.min(deltaY * 0.45, 90);
+
+      if (pullDistance >= threshold * 0.7) {
+        isRefreshing = true;
+        indicator.style.transform = `translateY(55px)`;
+        indicator.style.opacity = '1';
+        if (text) text.textContent = 'Memperbarui...';
+        if (icon) {
+          icon.style.transform = 'rotate(0deg)';
+          icon.classList.add('spin');
+        }
+
+        try {
+          await this.refreshCurrentView();
+        } catch (err) {
+          console.error('Refresh error:', err);
+        }
+
+        setTimeout(() => {
+          indicator.style.transform = `translateY(0)`;
+          indicator.style.opacity = '0';
+          if (icon) icon.classList.remove('spin');
+          isRefreshing = false;
+          startY = 0;
+          currentY = 0;
+        }, 500);
+      } else {
+        indicator.style.transform = `translateY(0)`;
+        indicator.style.opacity = '0';
+        startY = 0;
+        currentY = 0;
+      }
+    }, { passive: true });
+  }
+
   async checkNativeBackupStatus() {
     const statusText = document.getElementById('nativeBackupStatusText');
     const toggleBtn = document.getElementById('btnToggleNativeBackup');
@@ -1246,15 +1348,27 @@ class CloudMeApp {
       if (status && status.isEnabled) {
         await window.Capacitor.Plugins.AutoBackup.disableAutoBackup();
         this.showToast('Auto-backup galeri dinonaktifkan.', 'info');
-      } else {
-        const serverUrl = this.getServerUrl();
-        await window.Capacitor.Plugins.AutoBackup.enableAutoBackup({
-          serverUrl: serverUrl,
-          token: this.token,
-          intervalMinutes: 15
-        });
-        this.showToast('✅ Auto-backup galeri HP aktif! Sinkronisasi pertama dimulai.', 'success');
+        this.checkNativeBackupStatus();
+        return;
       }
+
+      // Check / Request media permissions from Android system dialog
+      if (!status.hasPermission) {
+        this.showToast('Meminta izin akses foto & video galeri...', 'info');
+        const permRes = await window.Capacitor.Plugins.AutoBackup.requestPermissions();
+        if (!permRes || !permRes.granted) {
+          this.showToast('⚠️ Izin akses media ditolak. Mohon izinkan akses di Pengaturan Aplikasi HP.', 'error');
+          return;
+        }
+      }
+
+      const serverUrl = this.getServerUrl();
+      await window.Capacitor.Plugins.AutoBackup.enableAutoBackup({
+        serverUrl: serverUrl,
+        token: this.token,
+        intervalMinutes: 15
+      });
+      this.showToast('✅ Auto-backup aktif! Memindai foto galeri...', 'success');
       this.checkNativeBackupStatus();
     } catch (err) {
       this.showToast('Gagal mengubah status auto-backup: ' + (err.message || err), 'error');
@@ -1268,12 +1382,22 @@ class CloudMeApp {
     }
 
     try {
+      // Also ensure permissions before syncNow
+      const status = await window.Capacitor.Plugins.AutoBackup.getStatus();
+      if (!status.hasPermission) {
+        const permRes = await window.Capacitor.Plugins.AutoBackup.requestPermissions();
+        if (!permRes || !permRes.granted) {
+          this.showToast('⚠️ Izin akses media diperlukan untuk sinkronisasi.', 'error');
+          return;
+        }
+      }
+
       await window.Capacitor.Plugins.AutoBackup.syncNow();
-      this.showToast('🔄 Memindai galeri dan mengunggah foto baru ke laptop...', 'info');
+      this.showToast('🔄 Memindai galeri dan menyinkronkan foto baru...', 'info');
       setTimeout(() => {
         this.checkNativeBackupStatus();
-        this.loadPhotosTimeline();
-      }, 4000);
+        if (this.currentNav === 'photos') this.loadPhotosTimeline();
+      }, 3500);
     } catch (err) {
       this.showToast('Gagal memicu sinkronisasi: ' + (err.message || err), 'error');
     }
@@ -2074,11 +2198,15 @@ class CloudMeApp {
     };
   }
 
-  refreshCurrentView() {
+  async refreshCurrentView() {
     if (this.currentNav === 'photos') {
-      this.loadPhotosTimeline();
+      await this.loadPhotosTimeline();
+    } else if (this.currentNav === 'backup') {
+      await this.renderMobileSyncHub();
+    } else if (this.currentNav === 'admin') {
+      await this.loadAdminPanel();
     } else {
-      this.loadFiles();
+      await this.loadFiles();
     }
   }
 

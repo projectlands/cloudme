@@ -1,7 +1,9 @@
 package com.cloudme.app;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.NetworkType;
@@ -9,16 +11,98 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.util.concurrent.TimeUnit;
 
-@CapacitorPlugin(name = "AutoBackup")
+@CapacitorPlugin(
+    name = "AutoBackup",
+    permissions = {
+        @Permission(
+            alias = "media",
+            strings = {
+                Manifest.permission.READ_MEDIA_IMAGES,
+                Manifest.permission.READ_MEDIA_VIDEO
+            }
+        ),
+        @Permission(
+            alias = "storage",
+            strings = {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
+        ),
+        @Permission(
+            alias = "notifications",
+            strings = {
+                Manifest.permission.POST_NOTIFICATIONS
+            }
+        )
+    }
+)
 public class AutoBackupPlugin extends Plugin {
     private static final String WORK_NAME = "CloudMeAutoBackupWork";
+    private static AutoBackupPlugin instance;
+
+    @Override
+    public void load() {
+        instance = this;
+    }
+
+    public static void emitSyncProgress(int current, int total, String status) {
+        if (instance != null) {
+            JSObject data = new JSObject();
+            data.put("current", current);
+            data.put("total", total);
+            data.put("status", status);
+            instance.notifyListeners("syncProgress", data);
+        }
+    }
+
+    @PluginMethod
+    public void checkPermissions(PluginCall call) {
+        boolean granted = isMediaPermissionGranted();
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void requestPermissions(PluginCall call) {
+        if (isMediaPermissionGranted()) {
+            JSObject ret = new JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionForAliases(new String[]{"media", "notifications"}, call, "mediaPermissionsCallback");
+        } else {
+            requestPermissionForAlias("storage", call, "mediaPermissionsCallback");
+        }
+    }
+
+    @PermissionCallback
+    private void mediaPermissionsCallback(PluginCall call) {
+        boolean granted = isMediaPermissionGranted();
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        call.resolve(ret);
+    }
+
+    private boolean isMediaPermissionGranted() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return getPermissionState("media") == PermissionState.GRANTED;
+        } else {
+            return getPermissionState("storage") == PermissionState.GRANTED;
+        }
+    }
 
     @PluginMethod
     public void enableAutoBackup(PluginCall call) {
@@ -116,6 +200,7 @@ public class AutoBackupPlugin extends Plugin {
         ret.put("isEnabled", enabled);
         ret.put("lastBackupTimestamp", lastBackup);
         ret.put("totalUploaded", totalUploaded);
+        ret.put("hasPermission", isMediaPermissionGranted());
         call.resolve(ret);
     }
 }
