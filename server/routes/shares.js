@@ -582,4 +582,33 @@ router.get('/:token/preview', (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// 10. GET /api/shares/:token/qr - Generate QR Code image
+// -------------------------------------------------------------
+router.get('/:token/qr', async (req, res) => {
+  try {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const origin = `${protocol}://${host}`;
+
+    let targetUrl;
+    if (req.params.token === 'test' || req.params.token === 'hub' || req.params.token === 'server') {
+      targetUrl = origin;
+    } else {
+      const share = db.prepare('SELECT * FROM shares WHERE token = ?').get(req.params.token);
+      targetUrl = share ? `${origin}/#share/${share.token}` : origin;
+    }
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    qrcode.toFileStream(res, targetUrl, {
+      width: 300,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

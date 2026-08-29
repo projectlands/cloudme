@@ -4,14 +4,28 @@
  */
 
 // Dynamic Server URL handling for Standalone APK & Remote access
+window.getCloudMeServerUrl = function() {
+  const custom = localStorage.getItem('cloudme_custom_server_url');
+  if (custom && custom.trim()) return custom.trim().replace(/\/+$/, '');
+  const isNative = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || window.location.protocol === 'file:' || (window.location.hostname === 'localhost' && window.location.port !== '8080');
+  if (isNative) return 'https://triple-bandwidth-dpi-prototype.trycloudflare.com';
+  return window.location.origin;
+};
+
+window.apiUrl = function(endpoint) {
+  if (!endpoint) return '';
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://') || endpoint.startsWith('blob:') || endpoint.startsWith('data:')) {
+    return endpoint;
+  }
+  const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+  return window.getCloudMeServerUrl() + clean;
+};
+
 const _origFetch = window.fetch;
 window.fetch = function(input, init) {
   if (typeof input === 'string') {
     if (input.startsWith('/api') || input.startsWith('/webdav')) {
-      const customUrl = localStorage.getItem('cloudme_custom_server_url');
-      const isNative = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || window.location.protocol === 'file:' || (window.location.hostname === 'localhost' && window.location.port !== '8080');
-      const serverUrl = customUrl ? customUrl.trim().replace(/\/+$/, '') : (isNative ? 'https://triple-bandwidth-dpi-prototype.trycloudflare.com' : window.location.origin);
-      input = serverUrl + input;
+      input = window.apiUrl(input);
     }
   }
   return _origFetch.apply(this, arguments);
@@ -39,6 +53,14 @@ class CloudMeApp {
     this.updateServerUrlDisplay();
     await this.checkSystemStatus();
     if (window.lucide) lucide.createIcons();
+  }
+
+  getServerUrl() {
+    return window.getCloudMeServerUrl();
+  }
+
+  apiUrl(endpoint) {
+    return window.apiUrl(endpoint);
   }
 
   // -------------------------------------------------------------
@@ -395,18 +417,18 @@ class CloudMeApp {
       let previewHtml = '';
       if (isImg) {
         previewHtml = `<div style="max-height: 360px; overflow: hidden; border-radius: var(--radius-lg); margin-bottom: 1.5rem; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center;">
-          <img src="/api/shares/${token}/preview" style="max-width: 100%; max-height: 360px; object-fit: contain;" alt="${this.escapeHtml(data.name)}">
+          <img src="${this.apiUrl('/api/shares/' + token + '/preview')}" style="max-width: 100%; max-height: 360px; object-fit: contain;" alt="${this.escapeHtml(data.name)}">
         </div>`;
       } else if (isVid) {
         previewHtml = `<div style="border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1.5rem; background: #000;">
           <video controls autoplay style="width: 100%; max-height: 360px;">
-            <source src="/api/shares/${token}/preview" type="${data.mimeType}">
+            <source src="${this.apiUrl('/api/shares/' + token + '/preview')}" type="${data.mimeType}">
           </video>
         </div>`;
       } else if (isAud) {
         previewHtml = `<div style="padding: 1.5rem; background: var(--bg-tertiary); border-radius: var(--radius-lg); margin-bottom: 1.5rem; text-align: center;">
           <audio controls autoplay style="width: 100%;">
-            <source src="/api/shares/${token}/preview" type="${data.mimeType}">
+            <source src="${this.apiUrl('/api/shares/' + token + '/preview')}" type="${data.mimeType}">
           </audio>
         </div>`;
       }
@@ -454,7 +476,7 @@ class CloudMeApp {
           <!-- Action Buttons -->
           <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
             ${data.allowDownload ? `
-              <a href="/api/shares/${token}/download" class="btn btn-primary" style="flex: 1; padding: 0.8rem 1.25rem; text-decoration: none; font-size: 0.95rem; justify-content: center;">
+              <a href="${this.apiUrl('/api/shares/' + token + '/download')}" class="btn btn-primary" style="flex: 1; padding: 0.8rem 1.25rem; text-decoration: none; font-size: 0.95rem; justify-content: center;">
                 <i data-lucide="download" style="width: 18px; height: 18px;"></i>
                 <span>Unduh Berkas (${this.formatBytes(data.sizeBytes)})</span>
               </a>
@@ -846,7 +868,7 @@ class CloudMeApp {
       let thumbnailHtml = `<i data-lucide="${this.getFileIcon(f.mime_type)}" class="file-icon-placeholder"></i>`;
       if (f.mime_type && f.mime_type.startsWith('image/')) {
         thumbnailHtml = `
-          <img src="/api/files/${f.id}/preview?token=${this.token}" class="file-thumb-img" alt="${this.escapeHtml(f.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <img src="${this.apiUrl('/api/files/' + f.id + '/preview?token=' + this.token)}" class="file-thumb-img" alt="${this.escapeHtml(f.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
             <i data-lucide="image" style="width: 36px; height: 36px; color: var(--text-muted);"></i>
           </div>
@@ -1021,7 +1043,7 @@ class CloudMeApp {
                   <button type="button" class="photo-menu-btn" title="Opsi Foto" onclick="event.stopPropagation(); app.showContextMenu(event, app.getItemById('${item.id}'))">
                     <i data-lucide="more-vertical" style="width: 14px; height: 14px;"></i>
                   </button>
-                  <img src="/api/files/${item.id}/preview?token=${this.token}" alt="${this.escapeHtml(item.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                  <img src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" alt="${this.escapeHtml(item.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
                   <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--bg-tertiary);">
                     <i data-lucide="image" style="width: 32px; height: 32px; color: var(--text-muted);"></i>
                   </div>
@@ -1052,7 +1074,7 @@ class CloudMeApp {
   // -------------------------------------------------------------
   async renderMobileSyncHub() {
     const view = document.getElementById('mobileBackupView');
-    const origin = window.location.origin;
+    const origin = this.getServerUrl();
     const webdavUrl = `${origin}/webdav`;
 
     view.innerHTML = `
@@ -1065,6 +1087,24 @@ class CloudMeApp {
             <div style="flex: 1; min-width: 200px;">
               <h2 style="font-size: 1.3rem; font-weight: 700; line-height: 1.3;">Backup Otomatis Foto & Video Android</h2>
               <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 2px;">Sinkronisasi galeri HP Android langsung ke server CloudMe Anda</p>
+            </div>
+          </div>
+
+          <div class="sync-steps-grid">
+            <div class="sync-step-card">
+              <div class="sync-step-num">1</div>
+              <div class="sync-step-title">Gunakan WebDAV</div>
+              <div class="sync-step-desc">Aplikasi backup HP (seperti FolderSync) dapat otomatis upload file kamera baru via WebDAV.</div>
+            </div>
+            <div class="sync-step-card">
+              <div class="sync-step-num">2</div>
+              <div class="sync-step-title">Atur Jadwal Sync</div>
+              <div class="sync-step-desc">Atur agar sync hanya berjalan saat terhubung Wi-Fi dan HP sedang di-charge baterai.</div>
+            </div>
+            <div class="sync-step-card">
+              <div class="sync-step-num">3</div>
+              <div class="sync-step-title">Otomatis Terindeks</div>
+              <div class="sync-step-desc">Foto yang masuk langsung muncul di galeri timeline berdasarkan tanggal pengambilan asli.</div>
             </div>
           </div>
 
@@ -1120,7 +1160,7 @@ class CloudMeApp {
 
           <div class="sync-qr-section">
             <div style="background: #ffffff; padding: 10px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); flex-shrink: 0; display: inline-flex;">
-              <img src="/api/shares/test/qr" style="width: 110px; height: 110px; display: block;" alt="QR Code Link" id="mobileHubQr">
+              <img src="${this.apiUrl('/api/shares/test/qr')}" style="width: 110px; height: 110px; display: block;" alt="QR Code Link" id="mobileHubQr">
             </div>
             <div style="flex: 1; min-width: 0; text-align: left;">
               <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.35rem;">Alamat Akses Server:</div>
@@ -1967,7 +2007,7 @@ class CloudMeApp {
     if (action === 'preview') {
       this.openLightbox(item);
     } else if (action === 'download') {
-      window.open(`/api/files/${item.id}/download?token=${this.token}`, '_blank');
+      window.open(this.apiUrl('/api/files/' + item.id + '/download?token=' + this.token), '_blank');
     } else if (action === 'share') {
       this.openShareModal(item);
     } else if (action === 'star') {
@@ -2020,11 +2060,11 @@ class CloudMeApp {
     const mimeType = item.mime_type || '';
 
     if (mimeType.startsWith('image/')) {
-      container.innerHTML = `<img src="/api/files/${item.id}/preview?token=${this.token}" alt="${this.escapeHtml(item.name)}">`;
+      container.innerHTML = `<img src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" alt="${this.escapeHtml(item.name)}">`;
     } else if (mimeType.startsWith('video/')) {
       container.innerHTML = `
         <video controls autoplay style="max-width: 90%; max-height: 85vh;">
-          <source src="/api/files/${item.id}/preview?token=${this.token}" type="${mimeType}">
+          <source src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" type="${mimeType}">
           Browser Anda tidak mendukung pemutar video ini.
         </video>
       `;
@@ -2034,13 +2074,13 @@ class CloudMeApp {
           <i data-lucide="music" style="width: 64px; height: 64px; margin-bottom: 1rem; color: var(--accent-primary);"></i>
           <h3 style="margin-bottom: 1rem;">${this.escapeHtml(item.name)}</h3>
           <audio controls autoplay style="width: 320px;">
-            <source src="/api/files/${item.id}/preview?token=${this.token}" type="${mimeType}">
+            <source src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" type="${mimeType}">
           </audio>
         </div>
       `;
       if (window.lucide) lucide.createIcons();
     } else if (mimeType.includes('pdf')) {
-      container.innerHTML = `<iframe src="/api/files/${item.id}/preview?token=${this.token}" style="width: 85vw; height: 85vh; border: none; border-radius: var(--radius-md);"></iframe>`;
+      container.innerHTML = `<iframe src="${this.apiUrl('/api/files/' + item.id + '/preview?token=' + this.token)}" style="width: 85vw; height: 85vh; border: none; border-radius: var(--radius-md);"></iframe>`;
     } else {
       container.innerHTML = `
         <div style="text-align: center; color: #ffffff;">
@@ -2064,7 +2104,7 @@ class CloudMeApp {
 
   downloadActiveLightboxFile() {
     if (this.activeLightboxItem) {
-      window.open(`/api/files/${this.activeLightboxItem.id}/download?token=${this.token}`, '_blank');
+      window.open(this.apiUrl('/api/files/' + this.activeLightboxItem.id + '/download?token=' + this.token), '_blank');
     }
   }
 
@@ -2122,7 +2162,7 @@ class CloudMeApp {
         const shareInput = document.getElementById('shareUrlInput');
         if (shareInput) shareInput.value = data.share.shareUrl;
         const qrImg = document.getElementById('shareQrCodeImg');
-        if (qrImg) qrImg.src = `/api/shares/${data.share.token}/qr`;
+        if (qrImg) qrImg.src = this.apiUrl(`/api/shares/${data.share.token}/qr`);
       }
     } catch (err) {
       this.showToast('Gagal membuat tautan berbagi', 'error');
