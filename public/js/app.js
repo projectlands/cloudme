@@ -862,7 +862,7 @@ class CloudMeApp {
 
     const emptyTrashBtn = document.getElementById('btnEmptyTrash');
     if (emptyTrashBtn) {
-      emptyTrashBtn.style.display = this.currentView === 'trash' && items.length > 0 ? 'inline-flex' : 'none';
+      emptyTrashBtn.style.display = this.currentNav === 'trash' && items.length > 0 ? 'inline-flex' : 'none';
     }
 
     // 1. Render Folders
@@ -2254,9 +2254,47 @@ class CloudMeApp {
     menu.style.left = `${Math.max(10, Math.min(x, window.innerWidth - 210))}px`;
     menu.style.top = `${Math.max(10, Math.min(y, window.innerHeight - 320))}px`;
 
-    document.getElementById('ctxStarText').textContent = item.is_starred ? 'Hapus dari Favorit' : 'Tambah ke Favorit';
-    document.getElementById('ctxPreview').style.display = item.is_folder ? 'none' : 'flex';
-    document.getElementById('ctxShare').style.display = 'flex';
+    const isTrash = (this.currentNav === 'trash' || item.is_trashed === 1);
+    const ctxRestore = document.getElementById('ctxRestore');
+    const ctxPreview = document.getElementById('ctxPreview');
+    const ctxDownload = document.getElementById('ctxDownload');
+    const ctxShare = document.getElementById('ctxShare');
+    const ctxStar = document.getElementById('ctxStar');
+    const ctxRename = document.getElementById('ctxRename');
+    const ctxMove = document.getElementById('ctxMove');
+    const ctxDelete = document.getElementById('ctxDelete');
+
+    if (isTrash) {
+      if (ctxRestore) ctxRestore.style.display = 'flex';
+      if (ctxPreview) ctxPreview.style.display = item.is_folder ? 'none' : 'flex';
+      if (ctxDownload) ctxDownload.style.display = 'none';
+      if (ctxShare) ctxShare.style.display = 'none';
+      if (ctxStar) ctxStar.style.display = 'none';
+      if (ctxRename) ctxRename.style.display = 'none';
+      if (ctxMove) ctxMove.style.display = 'none';
+      if (ctxDelete) {
+        ctxDelete.style.display = 'flex';
+        const label = ctxDelete.querySelector('span');
+        if (label) label.textContent = 'Hapus Permanen';
+      }
+    } else {
+      if (ctxRestore) ctxRestore.style.display = 'none';
+      if (ctxPreview) ctxPreview.style.display = item.is_folder ? 'none' : 'flex';
+      if (ctxDownload) ctxDownload.style.display = 'flex';
+      if (ctxShare) ctxShare.style.display = 'flex';
+      if (ctxStar) {
+        ctxStar.style.display = 'flex';
+        document.getElementById('ctxStarText').textContent = item.is_starred ? 'Hapus dari Favorit' : 'Tambah ke Favorit';
+      }
+      if (ctxRename) ctxRename.style.display = 'flex';
+      if (ctxMove) ctxMove.style.display = 'flex';
+      if (ctxDelete) {
+        ctxDelete.style.display = 'flex';
+        const label = ctxDelete.querySelector('span');
+        if (label) label.textContent = 'Hapus';
+      }
+    }
+
     if (window.lucide) lucide.createIcons();
   }
 
@@ -2286,15 +2324,16 @@ class CloudMeApp {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
           body: JSON.stringify({ name })
         });
-        const d = await res.json();
-        if (!res.ok) throw new Error(d.error || 'Gagal mengubah nama');
-        item.name = name;
-        this.closeModal('inputDialogModal');
-        this.showToast('✅ Nama berhasil diubah!', 'success');
-        if (onRenamed) onRenamed(name);
-        this.refreshCurrentView();
+        const data = await res.json();
+        if (res.ok) {
+          this.closeModal('inputDialogModal');
+          if (onRenamed) onRenamed(name);
+          this.refreshCurrentView();
+        } else {
+          this.showAlert('Gagal', data.error || 'Gagal mengganti nama.', 'error');
+        }
       } catch (err) {
-        this.showToast(`Gagal: ${err.message}`, 'error');
+        this.showAlert('Kesalahan Koneksi', 'Gagal menghubungi server.', 'error');
       }
     };
   }
@@ -2332,7 +2371,16 @@ class CloudMeApp {
     if (!item) return;
     this.closeContextMenu();
 
-    if (action === 'preview') {
+    if (action === 'restore') {
+      await fetch(`/api/files/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+        body: JSON.stringify({ is_trashed: 0 })
+      });
+      this.showToast('♻️ Item berhasil dipulihkan dari tempat sampah.', 'success');
+      this.refreshCurrentView();
+      this.checkSystemStatus();
+    } else if (action === 'preview') {
       this.openLightbox(item);
     } else if (action === 'download') {
       window.open(this.apiUrl('/api/files/' + item.id + '/download?token=' + this.token), '_blank');
@@ -2348,14 +2396,14 @@ class CloudMeApp {
     } else if (action === 'rename') {
       this.openRenameModal(item);
     } else if (action === 'delete') {
-      const isTrash = this.currentView === 'trash';
+      const isTrash = (this.currentNav === 'trash' || item.is_trashed === 1);
       const confirmed = await this.showConfirm(
         isTrash ? 'Hapus Permanen' : 'Pindahkan ke Sampah',
         isTrash 
           ? `Apakah Anda yakin ingin menghapus <strong>"${this.escapeHtml(item.name)}"</strong> secara permanen dari hard disk? Tindakan ini tidak dapat dibatalkan.`
           : `Pindahkan <strong>"${this.escapeHtml(item.name)}"</strong> ke tempat sampah?`,
         {
-          confirmText: isTrash ? 'Hapus Permanen' : 'Pindahkan ke Sampah',
+          confirmText: isTrash ? 'Ya, Hapus Permanen' : 'Pindahkan ke Sampah',
           cancelText: 'Batal',
           isDanger: isTrash,
           iconType: isTrash ? 'danger' : 'warning'
@@ -2375,7 +2423,6 @@ class CloudMeApp {
 
   // -------------------------------------------------------------
   // 9. Lightbox Media Previewer (Photos, Video, Audio, PDF, Text)
-  // -------------------------------------------------------------
   openLightbox(item) {
     this.activeLightboxItem = item;
     const lightbox = document.getElementById('mediaLightbox');
@@ -2551,10 +2598,22 @@ class CloudMeApp {
     const countText = document.getElementById('batchSelectedCount');
     if (countText) countText.textContent = `${count} item dipilih`;
 
-    // Toggle Batch Rename button: only visible if exactly 1 item is selected
+    // Batch Action bar controls for normal vs trash view
+    const isTrash = this.currentNav === 'trash';
+    const btnRestore = document.getElementById('btnBatchRestore');
+    const btnDeleteText = document.getElementById('btnBatchDeleteText');
+    const normalBatchBtns = document.querySelectorAll('.batch-normal-btn');
+
+    if (btnRestore) btnRestore.style.display = (isTrash && count > 0) ? 'inline-flex' : 'none';
+    if (btnDeleteText) btnDeleteText.textContent = isTrash ? 'Hapus Permanen' : 'Hapus';
+    normalBatchBtns.forEach(btn => {
+      btn.style.display = isTrash ? 'none' : 'inline-flex';
+    });
+
+    // Toggle Batch Rename button: only visible if exactly 1 item is selected and not in trash
     const btnRename = document.getElementById('btnBatchRename');
     if (btnRename) {
-      btnRename.style.display = count === 1 ? 'inline-flex' : 'none';
+      btnRename.style.display = (!isTrash && count === 1) ? 'inline-flex' : 'none';
     }
 
     if (count > 0 && window.lucide) lucide.createIcons();
@@ -2664,13 +2723,28 @@ class CloudMeApp {
     a.remove();
   }
 
+  async batchRestore() {
+    if (this.selectedItemIds.size === 0) return;
+    for (const id of this.selectedItemIds) {
+      await fetch(`/api/files/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+        body: JSON.stringify({ is_trashed: 0 })
+      });
+    }
+    this.showToast(`♻️ ${this.selectedItemIds.size} item berhasil dipulihkan dari sampah.`, 'success');
+    this.clearSelection();
+    this.refreshCurrentView();
+    this.checkSystemStatus();
+  }
+
   async batchDelete() {
     if (this.selectedItemIds.size === 0) return;
-    const isTrash = this.currentView === 'trash';
+    const isTrash = this.currentNav === 'trash';
     const confirmed = await this.showConfirm(
-      isTrash ? 'Hapus Permanen' : 'Pindahkan ke Sampah',
+      isTrash ? 'Hapus Permanen Item Terpilih' : 'Pindahkan ke Tempat Sampah',
       isTrash 
-        ? `Hapus <strong>PERMANEN</strong> ${this.selectedItemIds.size} item yang dipilih dari hard disk?<br><br><span style="color: var(--color-danger);">⚠️ Tindakan ini tidak dapat dibatalkan.</span>`
+        ? `Apakah Anda yakin ingin menghapus <strong>PERMANEN</strong> ${this.selectedItemIds.size} item yang dipilih dari hard disk?<br><br><span style="color: var(--color-danger);">⚠️ Tindakan ini akan menghapus data selamanya dan TIDAK DAPAT DIBATALKAN.</span>`
         : `Pindahkan <strong>${this.selectedItemIds.size} item</strong> yang dipilih ke tempat sampah?`,
       {
         confirmText: isTrash ? 'Ya, Hapus Permanen' : 'Pindahkan ke Sampah',
@@ -2688,7 +2762,7 @@ class CloudMeApp {
         });
       }
       this.clearSelection();
-      this.showToast(isTrash ? '🗑️ Item berhasil dihapus permanen.' : '🗑️ Item dipindahkan ke sampah.', 'success');
+      this.showToast(isTrash ? '🗑️ Item berhasil dihapus permanen dari hard disk.' : '🗑️ Item dipindahkan ke sampah.', 'success');
       this.refreshCurrentView();
       this.checkSystemStatus();
     }
@@ -2696,10 +2770,10 @@ class CloudMeApp {
 
   async emptyTrash() {
     const confirmed = await this.showConfirm(
-      'Kosongkan Seluruh Tempat Sampah',
-      'Apakah Anda yakin ingin mengosongkan seluruh tempat sampah?<br><br><span style="color: var(--color-danger);">⚠️ Semua berkas dan folder di sampah akan dihapus <strong>PERMANEN dari media penyimpanan hard disk</strong> dan tidak dapat dikembalikan!</span>',
+      'Hapus Permanen Seluruh Tempat Sampah',
+      'Apakah Anda yakin ingin mengosongkan dan menghapus seluruh tempat sampah secara permanen?<br><br><span style="color: var(--color-danger);">⚠️ Semua berkas dan folder di sampah akan <strong>DIHAPUS PERMANEN dari hard disk / penyimpanan server</strong> dan TIDAK DAPAT DIKEMBALIKAN lagi!</span>',
       {
-        confirmText: 'Ya, Kosongkan Permanen',
+        confirmText: 'Ya, Hapus Permanen',
         cancelText: 'Batal',
         isDanger: true,
         iconType: 'danger'

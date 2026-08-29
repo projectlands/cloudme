@@ -197,7 +197,33 @@ router.post('/upload', authMiddleware, upload.array('files', 50), async (req, re
     return res.status(400).json({ error: 'Tidak ada file yang diunggah.' });
   }
 
-  const parentId = (req.body.parentId && req.body.parentId !== 'root') ? req.body.parentId : null;
+  let parentId = (req.body.parentId && req.body.parentId !== 'root') ? req.body.parentId : null;
+  const folderPath = req.body.folderPath ? req.body.folderPath.trim() : null;
+
+  // Auto-resolve or create folder hierarchy if folderPath is provided (e.g. "Backup - Samsung A54/Keluarga")
+  if (folderPath) {
+    const parts = folderPath.split(/[/\\]+/).map(p => p.trim()).filter(Boolean);
+    let currentParent = parentId;
+    for (const part of parts) {
+      let existingFolder = db.prepare(`
+        SELECT id FROM files 
+        WHERE user_id = ? AND (parent_id IS ? OR parent_id = ?) AND name = ? AND is_folder = 1 AND is_trashed = 0
+      `).get(req.user.id, currentParent, currentParent, part);
+
+      if (!existingFolder) {
+        const newFolderId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+        db.prepare(`
+          INSERT INTO files (id, user_id, parent_id, name, is_folder, size_bytes, mime_type)
+          VALUES (?, ?, ?, ?, 1, 0, 'folder')
+        `).run(newFolderId, req.user.id, currentParent, part);
+        currentParent = newFolderId;
+      } else {
+        currentParent = existingFolder.id;
+      }
+    }
+    parentId = currentParent;
+  }
+
   const userStorageDir = getUserStorageDir(req.user.id);
   const uploadedResults = [];
 

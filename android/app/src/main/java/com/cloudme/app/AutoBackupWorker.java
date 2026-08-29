@@ -38,13 +38,15 @@ public class AutoBackupWorker extends Worker {
         public String name;
         public String mime;
         public long size;
+        public String albumName;
 
-        public MediaItem(String id, Uri uri, String name, String mime, long size) {
+        public MediaItem(String id, Uri uri, String name, String mime, long size, String albumName) {
             this.id = id;
             this.uri = uri;
             this.name = name;
             this.mime = mime;
             this.size = size;
+            this.albumName = (albumName != null && !albumName.trim().isEmpty()) ? albumName.trim() : "Galeri";
         }
 
         public String getUniqueKey() {
@@ -110,6 +112,15 @@ public class AutoBackupWorker extends Worker {
         Log.d(TAG, "Found " + totalFound + " new media items to backup.");
         AutoBackupPlugin.emitSyncProgress(0, totalFound, totalFound > 0 ? "Ditemukan " + totalFound + " media baru..." : "Semua galeri sudah tercadangkan.");
 
+        String deviceName = Build.MANUFACTURER != null ? Build.MANUFACTURER : "Android";
+        String model = Build.MODEL != null ? Build.MODEL : "Device";
+        if (model.toLowerCase().startsWith(deviceName.toLowerCase())) {
+            deviceName = model;
+        } else {
+            deviceName = deviceName + " " + model;
+        }
+        deviceName = "Backup - " + deviceName.trim();
+
         int uploadCount = 0;
         for (MediaItem item : pendingItems) {
             // Check for user cancellation before each upload
@@ -120,7 +131,8 @@ public class AutoBackupWorker extends Worker {
                 return Result.success();
             }
 
-            boolean success = uploadMedia(context, item.uri, item.name, item.mime, serverUrl, token);
+            String folderPath = deviceName + "/" + item.albumName;
+            boolean success = uploadMedia(context, item.uri, item.name, item.mime, folderPath, serverUrl, token);
             if (success) {
                 // Immediately save unique key to prevent re-upload even if stopped later
                 uploadedSet.add(item.getUniqueKey());
@@ -167,7 +179,8 @@ public class AutoBackupWorker extends Worker {
                 MediaStore.MediaColumns.DISPLAY_NAME,
                 MediaStore.MediaColumns.MIME_TYPE,
                 MediaStore.MediaColumns.SIZE,
-                MediaStore.MediaColumns.DATE_ADDED
+                MediaStore.MediaColumns.DATE_ADDED,
+                "bucket_display_name"
         };
 
         String sortOrder = MediaStore.MediaColumns.DATE_ADDED + " DESC";
@@ -177,6 +190,7 @@ public class AutoBackupWorker extends Worker {
                 int nameCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME);
                 int mimeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE);
                 int sizeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE);
+                int bucketCol = cursor.getColumnIndex("bucket_display_name");
 
                 while (cursor.moveToNext() && list.size() < 100) {
                     long id = cursor.getLong(idCol);
@@ -185,13 +199,23 @@ public class AutoBackupWorker extends Worker {
                     String mime = cursor.getString(mimeCol);
                     long size = cursor.getLong(sizeCol);
 
+                    String albumName = "Galeri";
+                    if (bucketCol != -1) {
+                        try {
+                            String b = cursor.getString(bucketCol);
+                            if (b != null && !b.trim().isEmpty()) {
+                                albumName = b.trim();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+
                     String uniqueKey = (name != null ? name : "") + "_" + size;
                     if (uploadedSet.contains(uniqueKey) || uploadedSet.contains(idStr)) {
                         continue;
                     }
 
                     Uri contentUri = ContentUris.withAppendedId(mediaUri, id);
-                    list.add(new MediaItem(idStr, contentUri, name, mime, size));
+                    list.add(new MediaItem(idStr, contentUri, name, mime, size, albumName));
                 }
             }
         } catch (Exception e) {
@@ -199,7 +223,7 @@ public class AutoBackupWorker extends Worker {
         }
     }
 
-    private boolean uploadMedia(Context context, Uri uri, String name, String mime, String serverUrl, String token) {
+    private boolean uploadMedia(Context context, Uri uri, String name, String mime, String folderPath, String serverUrl, String token) {
         String boundary = "----CloudMeBoundary" + System.currentTimeMillis();
         String lineEnd = "\r\n";
         String twoHyphens = "--";
@@ -230,6 +254,14 @@ public class AutoBackupWorker extends Worker {
                 String filename = (name != null && !name.isEmpty()) ? name : "photo_" + System.currentTimeMillis() + ".jpg";
                 String contentType = (mime != null && !mime.isEmpty()) ? mime : "image/jpeg";
 
+                // Add folderPath field for automatic device & album categorization
+                if (folderPath != null && !folderPath.isEmpty()) {
+                    dos.writeBytes(twoHyphens + boundary + lineEnd);
+                    dos.writeBytes("Content-Disposition: form-data; name=\"folderPath\"" + lineEnd + lineEnd);
+                    dos.write(folderPath.getBytes("UTF-8"));
+                    dos.writeBytes(lineEnd);
+                }
+
                 dos.writeBytes(twoHyphens + boundary + lineEnd);
                 dos.writeBytes("Content-Disposition: form-data; name=\"files\"; filename=\"" + filename + "\"" + lineEnd);
                 dos.writeBytes("Content-Type: " + contentType + lineEnd);
@@ -246,7 +278,7 @@ public class AutoBackupWorker extends Worker {
             }
 
             int responseCode = conn.getResponseCode();
-            Log.d(TAG, "Upload response: " + responseCode + " for " + name);
+            Log.d(TAG, "Upload response: " + responseCode + " for " + name + " into " + folderPath);
             return responseCode == 200 || responseCode == 201;
         } catch (Exception e) {
             Log.e(TAG, "Upload error for " + name + ": " + e.getMessage(), e);

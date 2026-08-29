@@ -247,9 +247,9 @@
           </button>
 
           <!-- Empty Trash Button (Visible only in Trash view) -->
-          <button id="btnEmptyTrash" class="btn btn-danger" style="display: none; padding: 0.4rem 0.75rem; font-size: 0.82rem;" onclick="app.emptyTrash()">
-            <i data-lucide="trash" style="width: 14px; height: 14px;"></i>
-            <span>Kosongkan Sampah</span>
+          <button id="btnEmptyTrash" class="btn btn-danger" style="display: none; padding: 0.4rem 0.75rem; font-size: 0.82rem;" onclick="app.emptyTrash()" title="Hapus seluruh isi tempat sampah secara permanen">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            <span>Hapus Permanen Semua</span>
           </button>
         </div>
       </div>
@@ -267,25 +267,29 @@
           </button>
         </div>
         <div class="batch-action-buttons">
-          <button class="btn btn-secondary" onclick="app.openBatchShareModal()" title="Bagikan berkas terpilih (Multi-file link)">
+          <button class="btn btn-secondary" id="btnBatchRestore" onclick="app.batchRestore()" style="display: none; color: #10b981;" title="Pulihkan item terpilih">
+            <i data-lucide="rotate-ccw" style="width: 15px; height: 15px;"></i>
+            <span>Pulihkan</span>
+          </button>
+          <button class="btn btn-secondary batch-normal-btn" id="btnBatchShare" onclick="app.openBatchShareModal()" title="Bagikan berkas terpilih (Multi-file link)">
             <i data-lucide="share-2" style="width: 15px; height: 15px;"></i>
             <span>Bagikan</span>
           </button>
-          <button class="btn btn-secondary" id="btnBatchRename" onclick="app.batchRename()" style="display: none;" title="Ganti nama item terpilih">
+          <button class="btn btn-secondary batch-normal-btn" id="btnBatchRename" onclick="app.batchRename()" style="display: none;" title="Ganti nama item terpilih">
             <i data-lucide="edit-3" style="width: 15px; height: 15px;"></i>
             <span>Ganti Nama</span>
           </button>
-          <button class="btn btn-secondary" onclick="app.batchDownloadZip()" title="Unduh item terpilih sebagai ZIP">
+          <button class="btn btn-secondary batch-normal-btn" id="btnBatchDownload" onclick="app.batchDownloadZip()" title="Unduh item terpilih sebagai ZIP">
             <i data-lucide="download" style="width: 15px; height: 15px;"></i>
             <span>Unduh ZIP</span>
           </button>
-          <button class="btn btn-secondary" onclick="app.openBatchMoveModal()" title="Pindahkan item terpilih">
+          <button class="btn btn-secondary batch-normal-btn" id="btnBatchMove" onclick="app.openBatchMoveModal()" title="Pindahkan item terpilih">
             <i data-lucide="folder-input" style="width: 15px; height: 15px;"></i>
             <span>Pindahkan</span>
           </button>
           <button class="btn btn-danger" onclick="app.batchDelete()" title="Hapus item terpilih">
             <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
-            <span>Hapus</span>
+            <span id="btnBatchDeleteText">Hapus</span>
           </button>
         </div>
       </div>
@@ -378,6 +382,10 @@
 
   <!-- Right Click Context Menu -->
   <div id="contextMenu" class="context-menu">
+    <div class="context-menu-item" id="ctxRestore" style="display: none; color: #10b981;" onclick="app.ctxAction('restore')">
+      <i data-lucide="rotate-ccw" style="width: 16px; height: 16px;"></i>
+      <span>Pulihkan</span>
+    </div>
     <div class="context-menu-item" id="ctxPreview" onclick="app.ctxAction('preview')">
       <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
       <span>Lihat (Preview)</span>
