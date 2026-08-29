@@ -93,6 +93,10 @@
               <i data-lucide="server" style="width: 16px; height: 16px; color: #3b82f6;"></i>
               <span>Alamat Server</span>
             </div>
+            <div class="context-menu-item" onclick="app.openAboutModal()">
+              <i data-lucide="info" style="width: 16px; height: 16px; color: #a855f7;"></i>
+              <span>Tentang CloudMe (v2.2)</span>
+            </div>
             <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
             <div class="context-menu-item" style="color: var(--color-danger);" onclick="app.logout()">
               <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
@@ -209,6 +213,15 @@
           <span id="storageUsedText">0 GB</span>
           <span id="storageTotalText">50 GB</span>
         </div>
+      </div>
+
+      <!-- App Version Footer -->
+      <div style="padding: 0.65rem 1rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; font-size: 0.76rem; color: var(--text-muted);">
+        <div style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="app.openAboutModal()" title="Tentang Aplikasi">
+          <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 0.72rem;">v2.2</span>
+          <span>CloudMe</span>
+        </div>
+        <button class="btn-text" style="font-size: 0.72rem; color: var(--accent-primary); padding: 2px 4px;" onclick="app.openAboutModal()">Tentang</button>
       </div>
     </aside>
 
@@ -809,6 +822,10 @@
           <i data-lucide="package-check" style="width: 20px; height: 20px; color: #ec4899;"></i>
           <span style="font-weight: 500; font-size: 0.95rem;">Migrasi Google Takeout (.zip)</span>
         </div>
+        <div class="context-menu-item" style="padding: 0.85rem 1rem; background: var(--bg-tertiary);" onclick="app.closeModal('mobileActionSheetModal'); app.openAboutModal();">
+          <i data-lucide="info" style="width: 20px; height: 20px; color: #a855f7;"></i>
+          <span style="font-weight: 500; font-size: 0.95rem;">Tentang Aplikasi (v2.2)</span>
+        </div>
       </div>
     </div>
   </div>
@@ -1130,6 +1147,91 @@
           <i data-lucide="check" style="width: 15px; height: 15px;"></i>
           <span>Simpan & Terapkan</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About App Modal (v2.2) -->
+  <div id="aboutAppModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 480px; padding: 1.6rem 1.4rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-logo" style="width: 44px; height: 44px; border-radius: 12px;">
+            <i data-lucide="cloud" style="width: 24px; height: 24px;"></i>
+          </div>
+          <div>
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.2;">CloudMe</h3>
+            <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 2px;">
+              <span style="font-size: 0.82rem; font-weight: 600; color: var(--accent-primary);">Versi 2.2.0</span>
+              <span style="display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--text-muted);"></span>
+              <span style="font-size: 0.75rem; color: #10b981; font-weight: 500;">● Terupdate</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-icon" onclick="app.closeModal('aboutAppModal')" title="Tutup"><i data-lucide="x"></i></button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.9rem; font-size: 0.86rem;">
+        <!-- Environment & Build Info -->
+        <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Versi Aplikasi:</span>
+            <span style="font-weight: 600; color: var(--text-primary); font-family: monospace;">v2.2.0 (Build 2026.08.30)</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Platform Berjalan:</span>
+            <span id="aboutAppPlatform" style="font-weight: 500; color: var(--text-primary);">Web Browser</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Alamat Server:</span>
+            <span id="aboutAppServerUrl" style="font-weight: 500; color: #38bdf8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Status Auto-Sync:</span>
+            <span style="color: #10b981; font-weight: 500;">Aktif & Siap</span>
+          </div>
+        </div>
+
+        <!-- Release Highlights v2.2 -->
+        <div>
+          <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.4rem;">Pembaruan pada v2.2:</div>
+          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.75rem 0.9rem; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.8rem; color: var(--text-secondary);">
+            <div style="display: flex; align-items: flex-start; gap: 0.4rem;">
+              <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
+              <span>Fitur <b>Batal & Retry (Coba Lagi)</b> pada antrean unggah</span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 0.4rem;">
+              <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
+              <span>Tombol <b>FAB (+) Mobile</b> dinamis melayang di atas kartu tray</span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 0.4rem;">
+              <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
+              <span>Modal <b>Detail & Informasi</b> lengkap (Hierarki path, SHA-256, EXIF foto)</span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 0.4rem;">
+              <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
+              <span>Penjelajah Folder <b>Pindah File Bertingkat</b> & anti-overflow</span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 0.4rem;">
+              <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
+              <span><b>Pinch-to-Zoom</b> & double-tap stretch pada preview gambar</span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 0.4rem;">
+              <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
+              <span>Seleksi <b>Neon Glowing Purple</b> & Long-press sentuh</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="app.copyToClipboard('CloudMe v2.2.0 (Build 2026.08.30)', 'Info versi disalin!')">
+            <i data-lucide="copy" style="width: 15px; height: 15px;"></i>
+            <span>Salin Info Versi</span>
+          </button>
+          <button type="button" class="btn btn-primary" onclick="app.closeModal('aboutAppModal')">
+            <span>Tutup</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>

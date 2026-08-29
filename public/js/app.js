@@ -4406,6 +4406,16 @@ class CloudMeApp {
     this.checkSystemStatus();
   }
 
+  openAboutModal() {
+    const isNative = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || window.location.protocol === 'file:';
+    const platformEl = document.getElementById('aboutAppPlatform');
+    const serverUrlEl = document.getElementById('aboutAppServerUrl');
+    if (platformEl) platformEl.textContent = isNative ? 'Android APK (Native Capacitor)' : 'Web Browser (Single Page App)';
+    if (serverUrlEl) serverUrlEl.textContent = window.getCloudMeServerUrl();
+    this.openModal('aboutAppModal');
+    if (window.lucide) lucide.createIcons();
+  }
+
   showToast(msg, type = 'info') {
     const toast = document.createElement('div');
     toast.style.cssText = `

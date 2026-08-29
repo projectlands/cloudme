@@ -1,6 +1,6 @@
 {
   "name": "cloudme",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "description": "Lightweight, Fast Self-Hosted Cloud Storage & Photos Auto-Backup",
   "main": "server/index.js",
   "scripts": {
