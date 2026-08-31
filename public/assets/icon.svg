@@ -1,42 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a" />
-      <stop offset="100%" stop-color="#020617" />
+      <stop offset="0%" stop-color="#242c35" />
+      <stop offset="100%" stop-color="#161c23" />
     </linearGradient>
-    <linearGradient id="cloudGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="50%" stop-color="#6366f1" />
-      <stop offset="100%" stop-color="#a855f7" />
+    <linearGradient id="blueLine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ba5e7" />
+      <stop offset="100%" stop-color="#558ecc" />
     </linearGradient>
-    <linearGradient id="cloudGrad2" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#c084fc" />
-      <stop offset="50%" stop-color="#818cf8" />
-      <stop offset="100%" stop-color="#38bdf8" />
-    </linearGradient>
-    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.6" />
-      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.2" />
-      <stop offset="100%" stop-color="#c084fc" stop-opacity="0.6" />
-    </linearGradient>
-    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="12" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
   </defs>
 
-  <!-- Squircle App Icon Base -->
-  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
-  <rect x="8" y="8" width="496" height="496" rx="112" fill="none" stroke="url(#borderGrad)" stroke-width="4" opacity="0.8" />
+  <!-- Dark Squircle Background -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+  <!-- Squircle Border -->
+  <rect x="22" y="22" width="468" height="468" rx="88" fill="none" stroke="url(#blueLine)" stroke-width="16" opacity="0.9" />
 
-  <!-- Glowing Ribbon Cloud Shape -->
-  <g filter="url(#neonGlow)">
-    <!-- Outer Cloud Arc -->
-    <path d="M160 360 C100 360 64 316 64 260 C64 208 104 168 156 164 C176 112 228 80 292 80 C364 80 424 128 440 196 C480 206 504 240 504 280 C504 324 468 360 424 360 Z" 
-          fill="none" stroke="url(#cloudGrad1)" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Cloud CDM Emblem Vector Paths -->
+  <g fill="none" stroke="url(#blueLine)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cloud Outer Contour connecting into CDM letters -->
+    <path d="M175 365 C115 365 75 325 75 270 C75 215 118 175 170 170 C190 115 242 85 305 85 C375 85 435 130 450 200 C488 212 510 245 510 285 C510 330 472 365 425 365" transform="scale(0.85) translate(45, 55)" />
     
-    <!-- Inner Stylized Infinite Loop / Backup Wave -->
-    <path d="M140 320 C180 320 220 280 260 230 C290 192 324 176 360 184 C400 192 428 228 424 270 C420 310 380 340 330 340 C270 340 230 290 190 290 C160 290 140 305 140 320 Z" 
-          fill="none" stroke="url(#cloudGrad2)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Letter 'c' inner curve -->
+    <path d="M190 280 C190 245 162 218 127 218 C92 218 65 245 65 280 C65 315 92 342 127 342 C155 342 178 324 187 298" transform="scale(0.85) translate(45, 55)" />
+
+    <!-- Letter 'd' vertical stem and loop -->
+    <path d="M265 140 L265 365" transform="scale(0.85) translate(45, 55)" />
+    <path d="M265 240 C235 240 210 262 210 295 C210 328 235 350 265 350" transform="scale(0.85) translate(45, 55)" />
+
+    <!-- Letter 'm' curves -->
+    <path d="M295 365 L295 240 C295 240 325 240 340 270 C355 240 385 240 405 240 L405 365" transform="scale(0.85) translate(45, 55)" />
   </g>
 </svg>

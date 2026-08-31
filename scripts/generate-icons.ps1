@@ -1,6 +1,6 @@
 Add-Type -AssemblyName System.Drawing
 
-$sourcePath = "C:\Users\U S E R\.gemini\antigravity-ide\brain\2100e0bf-781e-4efc-87bb-34adea769231\cloudme_logo_1788161514657.jpg"
+$sourcePath = "c:\Users\U S E R\Downloads\Cloudme\logocdm.jpg"
 $srcImg = [System.Drawing.Image]::FromFile($sourcePath)
 
 function Resize-And-Save($targetPath, $width, $height, $format) {
@@ -31,4 +31,4 @@ Resize-And-Save "c:\Users\U S E R\Downloads\Cloudme\public\icons\icon-512x512.pn
 Resize-And-Save "c:\Users\U S E R\Downloads\Cloudme\public\icons\icon-192x192.png" 192 192 ([System.Drawing.Imaging.ImageFormat]::Png)
 
 $srcImg.Dispose()
-Write-Host "All icons generated successfully!"
+Write-Host "All icons from logocdm.jpg generated successfully!"
