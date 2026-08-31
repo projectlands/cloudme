@@ -1569,74 +1569,76 @@ class CloudMeApp {
           </div>
 
           <!-- Metric Cards -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg);">
-              <div style="color: var(--text-muted); font-size: 0.85rem;">Total Pengguna</div>
-              <div style="font-size: 1.8rem; font-weight: 700; color: var(--accent-primary);">${statsData.stats.totalUsers}</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem;">
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+              <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Total Pengguna</div>
+              <div style="font-size: 1.8rem; font-weight: 700; color: var(--accent-primary); margin-top: 0.25rem;">${statsData.stats.totalUsers}</div>
             </div>
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg);">
-              <div style="color: var(--text-muted); font-size: 0.85rem;">Total File Tersimpan</div>
-              <div style="font-size: 1.8rem; font-weight: 700; color: var(--color-success);">${statsData.stats.totalFiles}</div>
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+              <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Total File Tersimpan</div>
+              <div style="font-size: 1.8rem; font-weight: 700; color: var(--color-success); margin-top: 0.25rem;">${statsData.stats.totalFiles}</div>
             </div>
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg);">
-              <div style="color: var(--text-muted); font-size: 0.85rem;">Penyimpanan Terpakai</div>
-              <div style="font-size: 1.8rem; font-weight: 700; color: var(--color-info);">${this.formatBytes(statsData.stats.totalStorageUsed)}</div>
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+              <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Penyimpanan Terpakai</div>
+              <div style="font-size: 1.8rem; font-weight: 700; color: var(--color-info); margin-top: 0.25rem;">${this.formatBytes(statsData.stats.totalStorageUsed)}</div>
             </div>
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg);">
-              <div style="color: var(--text-muted); font-size: 0.85rem;">Media Foto / Video</div>
-              <div style="font-size: 1.8rem; font-weight: 700; color: var(--color-warning);">${statsData.stats.totalPhotos}</div>
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+              <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Media Foto / Video</div>
+              <div style="font-size: 1.8rem; font-weight: 700; color: var(--color-warning); margin-top: 0.25rem;">${statsData.stats.totalPhotos}</div>
             </div>
+          </div>
+
           <!-- Registration Access Control Card (Enable / Disable Registration) -->
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow-md);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-              <div style="display: flex; align-items: center; gap: 0.85rem;">
-                <div style="width: 42px; height: 42px; border-radius: var(--radius-md); background: ${statsData.settings.allowRegistration ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)'}; display: flex; align-items: center; justify-content: center; color: ${statsData.settings.allowRegistration ? '#10b981' : '#ef4444'}; flex-shrink: 0;">
-                  <i data-lucide="${statsData.settings.allowRegistration ? 'user-check' : 'user-x'}" style="width: 22px; height: 22px;"></i>
+          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 1.35rem 1.6rem; margin-bottom: 1.75rem; box-shadow: var(--shadow-md); width: 100%; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.25rem;">
+              <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 280px;">
+                <div style="width: 46px; height: 46px; border-radius: var(--radius-lg); background: ${statsData.settings.allowRegistration ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)'}; display: flex; align-items: center; justify-content: center; color: ${statsData.settings.allowRegistration ? '#10b981' : '#ef4444'}; flex-shrink: 0;">
+                  <i data-lucide="${statsData.settings.allowRegistration ? 'user-check' : 'user-x'}" style="width: 24px; height: 24px;"></i>
                 </div>
                 <div>
-                  <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <h3 style="font-size: 1.05rem; font-weight: 600;">Pendaftaran Akun Baru (Registrasi Publik)</h3>
-                    <span style="font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); ${statsData.settings.allowRegistration ? 'background: rgba(16, 185, 129, 0.15); color: #10b981;' : 'background: rgba(239, 68, 68, 0.15); color: #ef4444;'}">
-                      ${statsData.settings.allowRegistration ? 'DIBUKA' : 'DITUTUP'}
+                  <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <h3 style="font-size: 1.08rem; font-weight: 700;">Pendaftaran Akun Baru (Registrasi Publik)</h3>
+                    <span style="font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: var(--radius-full); ${statsData.settings.allowRegistration ? 'background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);' : 'background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);'}">
+                      ${statsData.settings.allowRegistration ? '🟢 DIBUKA' : '🔒 DITUTUP'}
                     </span>
                   </div>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-                    ${statsData.settings.allowRegistration ? 'Pendaftaran mandiri aktif. Siapa saja dapat membuat akun baru melalui formulir registrasi di halaman login.' : 'Pendaftaran mandiri dinonaktifkan (ditutup). Pengguna baru hanya dapat dibuat oleh Admin melalui tombol Tambah Pengguna.'}
+                  <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">
+                    ${statsData.settings.allowRegistration ? 'Pendaftaran mandiri aktif. Siapa saja dapat membuat akun baru melalui formulir registrasi di halaman login.' : 'Pendaftaran mandiri dinonaktifkan. Pengguna baru hanya dapat dibuat oleh Administrator melalui tombol Tambah Pengguna.'}
                   </p>
                 </div>
               </div>
-              <button class="btn ${statsData.settings.allowRegistration ? 'btn-danger' : 'btn-primary'}" style="font-size: 0.85rem; padding: 0.55rem 1.15rem;" onclick="app.toggleRegistrationSetting(${!statsData.settings.allowRegistration})">
-                <i data-lucide="${statsData.settings.allowRegistration ? 'user-x' : 'user-check'}" style="width: 15px; height: 15px;"></i>
-                <span>${statsData.settings.allowRegistration ? 'Nonaktifkan Registrasi (Tutup)' : 'Aktifkan Registrasi (Buka)'}</span>
+              <button class="btn ${statsData.settings.allowRegistration ? 'btn-danger' : 'btn-primary'}" style="font-size: 0.85rem; padding: 0.6rem 1.25rem; white-space: nowrap; flex-shrink: 0;" onclick="app.toggleRegistrationSetting(${!statsData.settings.allowRegistration})">
+                <i data-lucide="${statsData.settings.allowRegistration ? 'lock' : 'unlock'}" style="width: 16px; height: 16px;"></i>
+                <span>${statsData.settings.allowRegistration ? 'Tutup Pendaftaran Publik' : 'Buka Pendaftaran Publik'}</span>
               </button>
             </div>
           </div>
 
           <!-- User Management Table -->
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 1.5rem; box-shadow: var(--shadow-md);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 1.5rem; box-shadow: var(--shadow-md); width: 100%; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
               <div>
-                <h3 style="font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
-                  <i data-lucide="users" style="width: 20px; height: 20px; color: var(--accent-primary);"></i>
+                <h3 style="font-size: 1.18rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                  <i data-lucide="users" style="width: 22px; height: 22px; color: var(--accent-primary);"></i>
                   Daftar Pengguna & Manajemen Akun
                 </h3>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Kelola akun pengguna, reset password, hak akses peran, dan alokasi kuota penyimpanan</p>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">Kelola akun pengguna, reset password, hak akses peran, dan alokasi kuota penyimpanan</p>
               </div>
-              <button class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1rem;" onclick="app.openAddUserModal()">
+              <button class="btn btn-primary" style="font-size: 0.85rem; padding: 0.55rem 1.15rem; flex-shrink: 0;" onclick="app.openAddUserModal()">
                 <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
                 <span>Tambah Pengguna</span>
               </button>
             </div>
 
-            <div class="file-table-container">
-              <table class="file-table" style="width: 100%;">
+            <div class="file-table-container" style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--bg-primary);">
+              <table class="file-table" style="width: 100%; min-width: 680px; border-collapse: collapse;">
                 <thead>
-                  <tr>
-                    <th>Pengguna</th>
-                    <th>Peran</th>
-                    <th>Penyimpanan Terpakai</th>
-                    <th>Alokasi Kuota</th>
-                    <th style="text-align: right;">Aksi</th>
+                  <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary);">
+                    <th style="padding: 0.85rem 1rem; text-align: left; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">PENGGUNA</th>
+                    <th style="padding: 0.85rem 1rem; text-align: left; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">PERAN</th>
+                    <th style="padding: 0.85rem 1rem; text-align: left; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">PENYIMPANAN TERPAKAI</th>
+                    <th style="padding: 0.85rem 1rem; text-align: left; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">ALOKASI KUOTA</th>
+                    <th style="padding: 0.85rem 1rem; text-align: right; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1646,49 +1648,49 @@ class CloudMeApp {
                     const quotaGB = Math.round(u.storage_quota_bytes / (1024 * 1024 * 1024));
 
                     return `
-                      <tr>
-                        <td>
-                          <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 34px; height: 34px; border-radius: 50%; background: ${u.role === 'admin' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #6366f1, #4f46e5)'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.88rem; flex-shrink: 0;">
+                      <tr style="border-bottom: 1px solid var(--border-color); transition: background 0.15s ease;">
+                        <td style="padding: 0.85rem 1rem;">
+                          <div style="display: flex; align-items: center; gap: 0.85rem;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: ${u.role === 'admin' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #6366f1, #4f46e5)'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.92rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
                               ${this.escapeHtml(u.username.charAt(0).toUpperCase())}
                             </div>
                             <div>
-                              <div style="font-weight: 600; font-size: 0.92rem; display: flex; align-items: center; gap: 0.4rem;">
+                              <div style="font-weight: 600; font-size: 0.92rem; display: flex; align-items: center; gap: 0.45rem;">
                                 <span>${this.escapeHtml(u.username)}</span>
-                                ${isSelf ? '<span style="font-size: 0.68rem; font-weight: 700; color: var(--accent-primary); background: rgba(99, 102, 241, 0.15); padding: 1px 6px; border-radius: 4px;">Akun Anda</span>' : ''}
+                                ${isSelf ? '<span style="font-size: 0.68rem; font-weight: 700; color: var(--accent-primary); background: rgba(99, 102, 241, 0.15); padding: 1px 7px; border-radius: 4px; border: 1px solid rgba(99, 102, 241, 0.3);">Akun Anda</span>' : ''}
                               </div>
-                              <div style="font-size: 0.78rem; color: var(--text-muted);">${this.escapeHtml(u.email)}</div>
+                              <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 1px;">${this.escapeHtml(u.email)}</div>
                             </div>
                           </div>
                         </td>
-                        <td>
-                          <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 600; background: ${u.role === 'admin' ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-tertiary)'}; color: ${u.role === 'admin' ? '#f59e0b' : 'var(--text-secondary)'}; border: 1px solid ${u.role === 'admin' ? 'rgba(245, 158, 11, 0.3)' : 'var(--border-color)'};">
-                            <i data-lucide="${u.role === 'admin' ? 'shield-check' : 'user'}" style="width: 12px; height: 12px;"></i>
-                            ${u.role === 'admin' ? 'Administrator' : 'User'}
+                        <td style="padding: 0.85rem 1rem;">
+                          <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 600; background: ${u.role === 'admin' ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-tertiary)'}; color: ${u.role === 'admin' ? '#f59e0b' : 'var(--text-secondary)'}; border: 1px solid ${u.role === 'admin' ? 'rgba(245, 158, 11, 0.3)' : 'var(--border-color)'};">
+                            <i data-lucide="${u.role === 'admin' ? 'shield-check' : 'user'}" style="width: 13px; height: 13px;"></i>
+                            ${u.role === 'admin' ? 'Administrator' : 'Pengguna Standar'}
                           </span>
                         </td>
-                        <td>
-                          <div style="font-weight: 600; font-size: 0.85rem;">${this.formatBytes(u.used_bytes)}</div>
-                          <div style="font-size: 0.74rem; color: var(--text-muted);">${u.file_count || 0} berkas (${usedPct}%)</div>
+                        <td style="padding: 0.85rem 1rem;">
+                          <div style="font-weight: 600; font-size: 0.86rem;">${this.formatBytes(u.used_bytes)}</div>
+                          <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">${u.file_count || 0} berkas (${usedPct}%)</div>
                         </td>
-                        <td>
-                          <div style="font-weight: 600; font-size: 0.85rem;">${this.formatBytes(u.storage_quota_bytes)}</div>
-                          <div class="storage-bar-bg" style="height: 5px; width: 85px; margin-top: 4px;">
+                        <td style="padding: 0.85rem 1rem;">
+                          <div style="font-weight: 600; font-size: 0.86rem;">${this.formatBytes(u.storage_quota_bytes)}</div>
+                          <div class="storage-bar-bg" style="height: 6px; width: 90px; margin-top: 5px;">
                             <div class="storage-bar-fill" style="width: ${usedPct}%; background: ${usedPct > 90 ? 'var(--color-danger)' : 'var(--accent-gradient)'};"></div>
                           </div>
                         </td>
-                        <td style="text-align: right;">
-                          <div style="display: flex; justify-content: flex-end; gap: 0.4rem; flex-wrap: wrap;">
-                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Edit Pengguna & Password" onclick="app.openEditUserModal('${u.id}')">
+                        <td style="padding: 0.85rem 1rem; text-align: right;">
+                          <div style="display: flex; justify-content: flex-end; gap: 0.45rem; flex-wrap: wrap;">
+                            <button class="btn btn-secondary" style="padding: 0.38rem 0.7rem; font-size: 0.78rem;" title="Edit Pengguna & Password" onclick="app.openEditUserModal('${u.id}')">
                               <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
                               <span>Edit</span>
                             </button>
-                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Ubah Kuota" onclick="app.editUserQuota('${u.id}', '${quotaGB}')">
+                            <button class="btn btn-secondary" style="padding: 0.38rem 0.7rem; font-size: 0.78rem;" title="Ubah Kuota" onclick="app.editUserQuota('${u.id}', '${quotaGB}')">
                               <i data-lucide="hard-drive" style="width: 13px; height: 13px;"></i>
                               <span>Kuota</span>
                             </button>
                             ${!isSelf ? `
-                              <button class="btn btn-danger" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Hapus Pengguna" onclick="app.deleteUser('${u.id}', '${this.escapeHtml(u.username)}')">
+                              <button class="btn btn-danger" style="padding: 0.38rem 0.7rem; font-size: 0.78rem;" title="Hapus Pengguna" onclick="app.deleteUser('${u.id}', '${this.escapeHtml(u.username)}')">
                                 <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
                                 <span>Hapus</span>
                               </button>
